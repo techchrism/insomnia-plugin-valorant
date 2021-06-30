@@ -1,4 +1,3 @@
-const EventEmitter = require('events').EventEmitter;
 const electron = require('electron');
 const nodeFetch = require('node-fetch');
 const fetchCookie = require('fetch-cookie/node-fetch');
@@ -63,11 +62,10 @@ async function showSignIn()
     });
 }
 
-class RiotAuthProvider extends EventEmitter
+class RiotAuthProvider
 {
     constructor()
     {
-        super();
         this.jar = new tough.CookieJar();
         this.fetch = fetchCookie(nodeFetch, this.jar);
         this.expiresAt = 0;

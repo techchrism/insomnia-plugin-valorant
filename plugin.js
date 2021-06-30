@@ -1,18 +1,12 @@
-const LocalInfoProvider = require('./src/info-providers/LocalInfoProvider');
 const remoteApi = require('./src/remoteAPI');
-
-const localInfoProvider = new LocalInfoProvider();
-
-localInfoProvider.on('update', data =>
-{
-    console.log('Info update: ');
-    console.log(data);
-});
+const localApi = require('./src/localAPI');
 
 module.exports.templateTags = [
-    ...remoteApi.templateTags
+    ...remoteApi.templateTags,
+    ...localApi.templateTags
 ]
 
 module.exports.workspaceActions = [
-    ...remoteApi.workspaceActions
+    ...remoteApi.workspaceActions,
+    ...localApi.workspaceActions
 ];
