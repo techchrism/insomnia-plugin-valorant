@@ -143,7 +143,7 @@ class LocalInfoProvider extends EventEmitter
     
     async manuallySetRegion(context)
     {
-        const region = (await context.app.prompt('Please Enter Valorant Region', {
+        const region = (await context.app.prompt('Enter Valorant Region', {
             label: `Must be one of [${regions.join(' | ')}]`
         })).toLowerCase();
         if(!regions.includes(region))
@@ -160,7 +160,7 @@ class LocalInfoProvider extends EventEmitter
         if(this.region === null)
         {
             // Check if there's a saved version
-            if(context.store.hasItem('region'))
+            if(await context.store.hasItem('region'))
             {
                 this.region = await context.store.getItem('region');
             }
@@ -175,6 +175,7 @@ class LocalInfoProvider extends EventEmitter
                 catch(ignored)
                 {
                     // Finally, just ask the user for a region
+                    // This seems to only work when sending a request
                     await this.manuallySetRegion(context);
                 }
             }

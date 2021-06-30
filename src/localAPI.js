@@ -28,7 +28,25 @@ function generateLockfileTag(displayName, property)
 module.exports.templateTags = [
     generateLockfileTag('Port', 'port'),
     generateLockfileTag('Password', 'password'),
-    generateLockfileTag('Protocol', 'protocol')
+    generateLockfileTag('Protocol', 'protocol'),
+    {
+        name: 'valorantregion',
+        displayName: 'Region',
+        description: 'Valorant account region',
+        async run(context)
+        {
+            return await localInfoProvider.getRegion(context);
+        }
+    },
+    {
+        name: 'clientversion',
+        displayName: 'Client Version',
+        description: 'Valorant client version',
+        async run()
+        {
+             return await localInfoProvider.getClientVersion();
+        }
+    }
 ];
 
 module.exports.workspaceActions = [
