@@ -79,6 +79,14 @@ class RiotAuthProvider extends EventEmitter
         this.store = null;
     }
     
+    checkStore(store)
+    {
+        if(this.store === null)
+        {
+            this.store = store;
+        }
+    }
+    
     async clearAccount()
     {
         const cookieStore = electron.remote.getCurrentWindow().webContents.session.cookies;
@@ -171,10 +179,7 @@ class RiotAuthProvider extends EventEmitter
     
     async _newInvoke(context)
     {
-        if(!this.store)
-        {
-            this.store = context.store;
-        }
+        this.checkStore(context.store);
         
         if(this.expiresAt === 0)
         {
