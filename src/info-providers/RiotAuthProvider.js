@@ -202,7 +202,6 @@ class RiotAuthProvider
             {
                 if(this.hasLoginCookie())
                 {
-                    console.log('Login cookie found');
                     try
                     {
                         tokenData = await this.reauthToken();
@@ -214,10 +213,7 @@ class RiotAuthProvider
                 }
                 else
                 {
-                    console.log('No login cookie');
                     tokenData = await this.logIn();
-                    console.log('Token data:');
-                    console.log(tokenData);
                 }
             }
             catch(e)
