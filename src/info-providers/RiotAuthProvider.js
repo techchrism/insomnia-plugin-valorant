@@ -39,8 +39,9 @@ async function showSignIn()
                 const tokenData = getTokenDataFromURL(url);
                 foundToken = true;
             
-                loginWindow.webContents.session.cookies.get({domain: 'auth.riotgames.com'}).then(cookies =>
+                loginWindow.webContents.session.cookies.get({domain: 'auth.riotgames.com'}).then(async cookies =>
                 {
+                    await Promise.all(cookies.map(cookie => loginWindow.webContents.session.cookies.remove(`https://${cookie.domain}${cookie.path}`, cookie.name)));
                     loginWindow.destroy();
                     resolve({
                         tokenData,

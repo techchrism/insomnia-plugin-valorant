@@ -60,7 +60,7 @@ module.exports.templateTags = [
 
 module.exports.workspaceActions = [
     {
-        label: 'Set Region',
+        label: 'Set Valorant Region',
         async action(context)
         {
             await localInfoProvider.manuallySetRegion(context);
