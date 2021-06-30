@@ -110,7 +110,6 @@ class LocalInfoProvider extends EventEmitter
         }
         catch(e)
         {
-            console.error(e);
             this.lockFileData = null;
             this.localData = null;
         }
@@ -166,17 +165,35 @@ class LocalInfoProvider extends EventEmitter
             }
             else
             {
-                // Try reading region from log
-                try
+                // Check if region is in startup params
+                if(this.localData !== null)
                 {
-                    this.region = await logParser.getRegion();
-                    await context.store.setItem('region', this.region);
+                    const sessionKeys = Object.keys(this.localData.externalSessions);
+                    const argStart = '-ares-deployment=';
+                    for(const arg of this.localData.externalSessions[sessionKeys[0]].launchConfiguration.arguments)
+                    {
+                        if(arg.startsWith(argStart))
+                        {
+                            this.region = arg.substring(argStart.length);
+                            await context.store.setItem('region', this.region);
+                            break;
+                        }
+                    }
                 }
-                catch(ignored)
+                else
                 {
-                    // Finally, just ask the user for a region
-                    // This seems to only work when sending a request
-                    await this.manuallySetRegion(context);
+                    // Try reading region from log
+                    try
+                    {
+                        this.region = await logParser.getRegion();
+                        await context.store.setItem('region', this.region);
+                    }
+                    catch(ignored)
+                    {
+                        // Finally, just ask the user for a region
+                        // This seems to only work when sending a request
+                        await this.manuallySetRegion(context);
+                    }
                 }
             }
         }
