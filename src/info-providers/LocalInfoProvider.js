@@ -3,11 +3,13 @@ const path = require('path');
 const fetch = require('node-fetch');
 const https = require('https');
 const EventEmitter = require('events').EventEmitter;
+const logParser = require('../logParser');
 
 const localAgent = new https.Agent({
     rejectUnauthorized: false
 });
 const lockfilePath = path.join(process.env['LOCALAPPDATA'], 'Riot Games\\Riot Client\\Config\\lockfile');
+const regions = ['na','ko','eu','ap'];
 
 async function getLockfileData()
 {
@@ -83,10 +85,11 @@ class LocalInfoProvider extends EventEmitter
     constructor()
     {
         super();
-        this.info = {
-            lockFileData: null,
-            localData: null
-        };
+        this.lockFileData = null;
+        this.localData = null;
+        this.clientVersion = null;
+        this.region = null;
+        
         this.watcher = fs.watch(path.dirname(lockfilePath), async (eventType, fileName) =>
         {
             if(eventType === 'rename' && fileName === 'lockfile')
@@ -101,15 +104,82 @@ class LocalInfoProvider extends EventEmitter
     {
         try
         {
-            this.info.lockFileData = await getLockfileData();
-            this.info.localData = await loadLocalData(this.info.lockFileData.port, this.info.lockFileData.password);
-            this.emit('update', this.info);
+            this.lockFileData = await getLockfileData();
+            this.localData = await loadLocalData(this.lockFileData.port, this.lockFileData.password);
+            this.emit('update');
         }
         catch(e)
         {
-            this.info.lockFileData = null;
-            this.info.localData = null;
+            console.error(e);
+            this.lockFileData = null;
+            this.localData = null;
         }
+    }
+    
+    async refreshClientVersion()
+    {
+        try
+        {
+            // First try reading log
+            this.clientVersion = await logParser.getClientVersion();
+        }
+        catch(ignored)
+        {
+            // Next, try the unofficial api
+            const apiData = await (await fetch('https://valorant-api.com/v1/version')).json();
+            this.clientVersion = apiData.data['riotClientVersion'];
+        }
+        return this.clientVersion;
+    }
+    
+    async getClientVersion()
+    {
+        if(this.clientVersion === null)
+        {
+            await this.refreshClientVersion();
+        }
+        return this.clientVersion;
+    }
+    
+    async manuallySetRegion(context)
+    {
+        const region = (await context.app.prompt('Please Enter Valorant Region', {
+            label: `Must be one of [${regions.join(' | ')}]`
+        })).toLowerCase();
+        if(!regions.includes(region))
+        {
+            throw new Error('Invalid region');
+        }
+        
+        this.region = region;
+        await context.store.setItem('region', this.region);
+    }
+    
+    async getRegion(context)
+    {
+        if(this.region === null)
+        {
+            // Check if there's a saved version
+            if(context.store.hasItem('region'))
+            {
+                this.region = await context.store.getItem('region');
+            }
+            else
+            {
+                // Try reading region from log
+                try
+                {
+                    this.region = await logParser.getRegion();
+                    await context.store.setItem('region', this.region);
+                }
+                catch(ignored)
+                {
+                    // Finally, just ask the user for a region
+                    await this.manuallySetRegion(context);
+                }
+            }
+        }
+        return this.region;
     }
     
     close()
