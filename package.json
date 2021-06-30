@@ -1,0 +1,24 @@
+{
+  "name": "insomnia-plugin-valorant",
+  "version": "0.1.0",
+  "description": "Adds template tags to Insomnia with Valorant data",
+  "main": "plugin.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "techchrism",
+  "license": "MIT",
+  "insomnia": {
+    "name": "valorant",
+    "displayName": "Valorant",
+    "description": "Add template tags with Valorant data"
+  },
+  "dependencies": {
+    "esm": "^3.2.25",
+    "fetch-cookie": "^1.0.0",
+    "node-fetch": "^2.6.1",
+    "node-fetch-cookies": "^2.0.2",
+    "tough-cookie": "^4.0.0"
+  }
+}
