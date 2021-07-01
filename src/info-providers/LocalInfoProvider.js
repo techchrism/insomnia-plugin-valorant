@@ -236,6 +236,9 @@ class LocalInfoProvider extends EventEmitter
             console.error(e);
             this.lockFileData = null;
             this.localData = null;
+            this.matchID = null;
+            this.matchState = null;
+            this.partyID = null;
         }
     }
     
