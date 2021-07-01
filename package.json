@@ -1,6 +1,6 @@
 {
   "name": "insomnia-plugin-valorant",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Adds template tags to Insomnia with Valorant data",
   "bugs": {
     "url": "https://github.com/techchrism/insomnia-plugin-valorant/issues"

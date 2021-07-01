@@ -168,10 +168,20 @@ class LocalInfoProvider extends EventEmitter
             
             // Load lockfile data and local api endpoint (for region)
             this.lockFileData = await getLockfileData();
-            this.localData = await loadLocalData(this.lockFileData.port, this.lockFileData.password);
+            do
+            {
+                this.localData = await loadLocalData(this.lockFileData.port, this.lockFileData.password);
+                if(!this.localData.sessionData['puuid'])
+                {
+                    logger.info('Couldn\'t find puuid, retrying...');
+                    await asyncTimeout(500);
+                }
+            } while(!this.localData.sessionData['puuid']);
             this.region = getRegionFromSessions(this.localData.externalSessions);
             
             // Get party status and match status
+            logger.info('Waiting for private presence data...');
+            logger.info(`PUUID: ${this.localData.sessionData['puuid']}`);
             const privatePresenceData = await waitForPrivatePresence(this.lockFileData.port, this.lockFileData.password, this.localData.sessionData['puuid']);
             logger.info('Loaded private presence data:', privatePresenceData);
             
@@ -200,6 +210,14 @@ class LocalInfoProvider extends EventEmitter
                 logger.info('Websocket opened, sending event listeners');
                 this.ws.send(JSON.stringify([5, 'OnJsonApiEvent_riot-messaging-service_v1_message']));
                 this.ws.send(JSON.stringify([5, 'OnJsonApiEvent_chat_v4_presences']));
+            });
+            this.ws.on('error', error =>
+            {
+                logger.error('Websocket error:', error);
+            });
+            this.ws.on('close', () =>
+            {
+                logger.error('Websocket closed');
             });
             this.ws.on('message', dataStr =>
             {
@@ -243,14 +261,12 @@ class LocalInfoProvider extends EventEmitter
                 }
             });
             
+            logger.info('Loaded all data');
             this.emit('update');
         }
         catch(e)
         {
-            if(e.code !== 'ENOENT')
-            {
-                logger.error('Error while loading lockfile', e);
-            }
+            logger.error('Error while loading lockfile', e);
             this.lockFileData = null;
             this.localData = null;
             this.matchID = null;
