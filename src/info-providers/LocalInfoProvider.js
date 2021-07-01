@@ -5,6 +5,7 @@ const https = require('https');
 const EventEmitter = require('events').EventEmitter;
 const logParser = require('../logParser');
 const WebSocket = require('ws');
+const logger = require('../logger');
 
 const localAgent = new https.Agent({
     rejectUnauthorized: false
@@ -163,6 +164,8 @@ class LocalInfoProvider extends EventEmitter
     {
         try
         {
+            logger.info('lockfile changed, reading new data...');
+            
             // Load lockfile data and local api endpoint (for region)
             this.lockFileData = await getLockfileData();
             this.localData = await loadLocalData(this.lockFileData.port, this.lockFileData.password);
@@ -170,7 +173,7 @@ class LocalInfoProvider extends EventEmitter
             
             // Get party status and match status
             const privatePresenceData = await waitForPrivatePresence(this.lockFileData.port, this.lockFileData.password, this.localData.sessionData['puuid']);
-            console.log(privatePresenceData);
+            logger.info('Loaded private presence data:', privatePresenceData);
             
             this.partyID = privatePresenceData['partyId'];
             this.matchState = privatePresenceData['sessionLoopState'];
@@ -178,15 +181,15 @@ class LocalInfoProvider extends EventEmitter
             // If a match is currently happening, get the match id
             if(['INGAME', 'PREGAME'].includes(this.matchState))
             {
-                console.log('Grabbing match id!');
+                logger.info(`Currently in a game (${this.matchState}), finding match id...`);
                 this.matchID = await getMatchID(this.lockFileData.port, this.lockFileData.password, this.matchState, this.region, this.localData.sessionData['puuid']);
-                console.log('Match id:');
-                console.log(this.matchID);
+                logger.info('Found match id:', this.matchID);
             }
             
             // Load the websocket to listen for party changes / matches starting and stopping
             if(this.ws !== null && this.ws.readyState < 2)
             {
+                logger.info('Closing existing websocket connection');
                 this.ws.close();
             }
             this.ws = new WebSocket(`wss://riot:${this.lockFileData.password}@localhost:${this.lockFileData.port}`, {
@@ -194,6 +197,7 @@ class LocalInfoProvider extends EventEmitter
             });
             this.ws.on('open', () =>
             {
+                logger.info('Websocket opened, sending event listeners');
                 this.ws.send(JSON.stringify([5, 'OnJsonApiEvent_riot-messaging-service_v1_message']));
                 this.ws.send(JSON.stringify([5, 'OnJsonApiEvent_chat_v4_presences']));
             });
@@ -207,11 +211,21 @@ class LocalInfoProvider extends EventEmitter
                 {
                     if(data.uri.startsWith(matchPrePrefix))
                     {
-                        this.matchID = data.uri.substring(matchPrePrefix.length);
+                        const newID = data.uri.substring(matchPrePrefix.length);
+                        if(this.matchID !== newID)
+                        {
+                            this.matchID = newID;
+                            logger.info('New pre-game match id:', this.matchID);
+                        }
                     }
                     else if(data.uri.startsWith(partyPrefix))
                     {
-                        this.partyID = data.uri.substring(partyPrefix.length);
+                        const newPartyID = data.uri.substring(partyPrefix.length);
+                        if(this.partyID !== newPartyID)
+                        {
+                            this.partyID = newPartyID;
+                            logger.info('New party id:', this.partyID);
+                        }
                     }
                 }
                 else if(eventData[1] === 'OnJsonApiEvent_chat_v4_presences')
@@ -223,7 +237,7 @@ class LocalInfoProvider extends EventEmitter
                     this.matchState = privateData['sessionLoopState'];
                     if(this.matchState === 'MENUS')
                     {
-                        console.log('Clearing match id');
+                        logger.info('No longer in game, clearing match id');
                         this.matchID = null;
                     }
                 }
@@ -233,7 +247,10 @@ class LocalInfoProvider extends EventEmitter
         }
         catch(e)
         {
-            console.error(e);
+            if(e.code !== 'ENOENT')
+            {
+                logger.error('Error while loading lockfile', e);
+            }
             this.lockFileData = null;
             this.localData = null;
             this.matchID = null;
@@ -247,11 +264,13 @@ class LocalInfoProvider extends EventEmitter
         try
         {
             // First try reading log
+            logger.info('Loading client version from log');
             this.clientVersion = await logParser.getClientVersion();
         }
         catch(ignored)
         {
             // Next, try the unofficial api
+            logger.info('Resorting to unofficial api');
             const apiData = await (await fetch('https://valorant-api.com/v1/version')).json();
             this.clientVersion = apiData.data['riotClientVersion'];
         }
@@ -288,6 +307,7 @@ class LocalInfoProvider extends EventEmitter
             // Check if there's a saved version
             if(await context.store.hasItem('region'))
             {
+                logger.info('Using saved region data');
                 this.region = await context.store.getItem('region');
             }
             else
@@ -295,6 +315,7 @@ class LocalInfoProvider extends EventEmitter
                 // Check if region is in startup params
                 if(this.localData !== null)
                 {
+                    logger.info('Using region from startup params');
                     this.region = getRegionFromSessions(this.localData.externalSessions);
                     await context.store.setItem('region', this.region);
                 }
@@ -303,6 +324,7 @@ class LocalInfoProvider extends EventEmitter
                     // Try reading region from log
                     try
                     {
+                        logger.info('Reading region from log');
                         this.region = await logParser.getRegion();
                         await context.store.setItem('region', this.region);
                     }
@@ -310,6 +332,7 @@ class LocalInfoProvider extends EventEmitter
                     {
                         // Finally, just ask the user for a region
                         // This seems to only work when sending a request
+                        logger.info('Trying to manually ask for a region');
                         await this.manuallySetRegion(context);
                     }
                 }

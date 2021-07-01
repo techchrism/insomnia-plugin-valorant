@@ -1,7 +1,6 @@
 const LocalInfoProvider = require('./info-providers/LocalInfoProvider');
 
 const localInfoProvider = new LocalInfoProvider();
-window.localInfoProvider = localInfoProvider;
 
 function getLockfileDataElement(name)
 {

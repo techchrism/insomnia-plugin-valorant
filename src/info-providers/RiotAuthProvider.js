@@ -2,6 +2,7 @@ const electron = require('electron');
 const nodeFetch = require('node-fetch');
 const fetchCookie = require('fetch-cookie/node-fetch');
 const tough = require('tough-cookie');
+const logger = require('../logger');
 
 const signInUrl = 'https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in&client_id=play-valorant-web-prod&response_type=token%20id_token';
 
@@ -34,8 +35,10 @@ async function showSignIn()
         let foundToken = false;
         loginWindow.webContents.on('will-redirect', (event, url) =>
         {
+            logger.info('Login window redirecting...');
             if(!foundToken && url.startsWith('https://playvalorant.com/opt_in'))
             {
+                logger.info('Redirecting to url with tokens');
                 const tokenData = getTokenDataFromURL(url);
                 foundToken = true;
             
@@ -56,6 +59,7 @@ async function showSignIn()
         });
         loginWindow.on('close', () =>
         {
+            logger.info('Login window was closed');
             reject('window closed');
         });
         window.loginWindow = loginWindow;
@@ -88,6 +92,7 @@ class RiotAuthProvider
     
     async clearAccount()
     {
+        logger.info('Clearing account');
         const cookieStore = electron.remote.getCurrentWindow().webContents.session.cookies;
         const cookies = await cookieStore.get({domain: 'auth.riotgames.com'});
         let removals = [];
@@ -98,6 +103,7 @@ class RiotAuthProvider
         await Promise.all(removals);
         if(this.store)
         {
+            logger.info('Clearing saved store items');
             await Promise.all([
                 this.store.removeItem('expiresAt'),
                 this.store.removeItem('token'),
@@ -116,6 +122,7 @@ class RiotAuthProvider
     
     async logIn()
     {
+        logger.info('Signing in...');
         const data = await showSignIn();
         for(const cookie of data.cookies)
         {
@@ -184,6 +191,7 @@ class RiotAuthProvider
         {
             if(await context.store.hasItem('expiresAt'))
             {
+                logger.info('Loading saved Riot data from store');
                 this.expiresAt = parseInt(await context.store.getItem('expiresAt'));
                 this.token = await context.store.getItem('token');
                 this.entitlement = await context.store.getItem('entitlement');
@@ -198,11 +206,13 @@ class RiotAuthProvider
         // Regenerate token after expiration
         if(this.expiresAt <= currentTime)
         {
+            logger.info('Token has expired');
             let tokenData = {};
             try
             {
                 if(this.hasLoginCookie())
                 {
+                    logger.info('Trying to re-auth with login cookie');
                     try
                     {
                         tokenData = await this.reauthToken();
@@ -214,16 +224,18 @@ class RiotAuthProvider
                 }
                 else
                 {
+                    logger.info('Requesting login');
                     tokenData = await this.logIn();
                 }
             }
             catch(e)
             {
-                console.error(e);
+                logger.error('Error while refreshing token', e);
                 throw new Error('Riot login failed');
             }
             
             this.token = tokenData.accessToken;
+            logger.info('Loading entitlement and puuid');
             this.entitlement = await this.getEntitlement();
             this.puuid = await this.getPUUID();
             
