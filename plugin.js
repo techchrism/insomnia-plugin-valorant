@@ -1,14 +1,11 @@
 const remoteApi = require('./src/remoteAPI');
 const localApi = require('./src/localAPI');
+const os = require('os');
 
-module.exports.templateTags = [
-    ...remoteApi.templateTags,
-    ...localApi.templateTags
-]
+module.exports.templateTags = [...remoteApi.templateTags];
 
 module.exports.workspaceActions = [
     ...remoteApi.workspaceActions,
-    ...localApi.workspaceActions,
     {
         label: 'Remove Saved Valorant Data',
         async action(context)
@@ -18,3 +15,8 @@ module.exports.workspaceActions = [
         }
     }
 ];
+
+if(os.platform() === 'win32') {
+    module.exports.templateTags.push(...localApi.templateTags);
+    module.exports.workspaceActions.push(...localApi.workspaceActions);
+}
