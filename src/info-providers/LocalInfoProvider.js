@@ -123,11 +123,20 @@ class LocalInfoProvider extends EventEmitter {
 
         this.ws = null;
 
+        let waitingForUpdate = false;
         this.watcher = fs.watch(path.dirname(lockfilePath), async (eventType, fileName) => {
-            if (eventType === 'rename' && fileName === 'lockfile') {
-                await this.tryUpdateInfo();
+            if (eventType === 'rename' && fileName === 'lockfile' && !waitingForUpdate) {
+                waitingForUpdate = true;
+                try {
+                    await this.tryUpdateInfo();
+                }
+                catch(e) {
+                    console.error(e);
+                }
+                waitingForUpdate = false;
             }
         });
+
         this.tryUpdateInfo();
     }
 
@@ -138,7 +147,7 @@ class LocalInfoProvider extends EventEmitter {
             // Load lockfile data and local api endpoint (for region)
             this.lockFileData = await getLockfileData();
             do {
-                this.localData = await loadLocalData(this.lockFileData.port, this.lockFileData.password);
+                this.localData = await loadLocalData(this.lockFileData.port, this.lockFileData.password, 5);
                 if (!this.localData.sessionData['puuid']) {
                     logger.info('Couldn\'t find puuid, retrying...');
                     await asyncTimeout(500);
