@@ -8,26 +8,20 @@ const signInUrl = 'https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F
 const signInError = `Riot Account Not Signed In - 
 To sign in, click the dropdown at the top left, just above "Cookies" then click "Sign in to Riot account".`
 
-function getTokenDataFromURL(url)
-{
-    try
-    {
+function getTokenDataFromURL(url) {
+    try {
         const searchParams = new URLSearchParams((new URL(url)).hash.slice(1));
         return {
             accessToken: searchParams.get('access_token'),
             expiresIn: searchParams.get('expires_in')
         };
-    }
-    catch(err)
-    {
+    } catch (err) {
         throw new Error(`Bad url: "${url}"`);
     }
 }
 
-class RiotAuthProvider
-{
-    constructor()
-    {
+class RiotAuthProvider {
+    constructor() {
         this.expiresAt = 0;
         this.token = null;
         this.entitlement = null;
@@ -39,10 +33,8 @@ class RiotAuthProvider
         this.store = null;
     }
 
-    checkStore(store)
-    {
-        if(this.store === null)
-        {
+    checkStore(store) {
+        if (this.store === null) {
             this.store = store;
         }
     }
@@ -72,7 +64,7 @@ class RiotAuthProvider
         this.token = null;
         this.entitlement = null;
         this.puuid = null;
-        if(this.store) {
+        if (this.store) {
             logger.info('Clearing saved store items');
             await Promise.all([
                 this.store.removeItem('expiresAt'),
@@ -89,7 +81,7 @@ class RiotAuthProvider
             valLogoutWebView.partition = 'persist:valorant';
 
             valLogoutWebView.addEventListener('did-navigate', function navigateHandler(event) {
-                if(event.url === 'https://auth.riotgames.com/logout') {
+                if (event.url === 'https://auth.riotgames.com/logout') {
                     logger.info('Confirmed signed out');
                     valLogoutWebView.stop();
                     valLogoutWebView.removeEventListener('did-navigate', navigateHandler);
@@ -107,7 +99,7 @@ class RiotAuthProvider
     async signIn(context) {
         // Sign out because it's unclear if an account is currently signed in
         // This can happen when the action is initiated before a token retrieval attempt happens
-        if(!this.waitingForSignIn) {
+        if (!this.waitingForSignIn) {
             await this.signOut();
         }
 
@@ -125,20 +117,20 @@ class RiotAuthProvider
 
             // Event handler to check for tokens in the urls of navigated and redirected events
             const checkForToken = async (event) => {
-                if(event.url.startsWith('https://playvalorant.com/') && event.url.includes('access_token')) {
+                if (event.url.startsWith('https://playvalorant.com/') && event.url.includes('access_token')) {
                     cleanupWebView();
 
                     // Close model
-                    if(shownSignIn) {
+                    if (shownSignIn) {
                         const closeButtons = document.getElementsByClassName('modal__close-btn');
-                        if(closeButtons.length === 0) {
+                        if (closeButtons.length === 0) {
                             logger.warning('No close buttons found for open model');
                         } else {
-                            if(closeButtons.length > 1) {
+                            if (closeButtons.length > 1) {
                                 logger.warning('Found multiple close buttons! Closing them all.');
                             }
                             readyForHide = true;
-                            for(const closeButton of closeButtons) {
+                            for (const closeButton of closeButtons) {
                                 closeButton.click();
                             }
                         }
@@ -156,7 +148,7 @@ class RiotAuthProvider
             const hideHandler = () => {
                 cleanupWebView();
 
-                if(!readyForHide) {
+                if (!readyForHide) {
                     reject('Window closed');
                 }
             }
@@ -166,7 +158,7 @@ class RiotAuthProvider
             };
 
             const navigateHandler = (event) => {
-                if(event.url.startsWith('https://auth.riotgames.com/login') && !shownSignIn) {
+                if (event.url.startsWith('https://auth.riotgames.com/login') && !shownSignIn) {
                     shownSignIn = true;
                     logger.info('Showing sign in page...');
 
@@ -184,12 +176,12 @@ class RiotAuthProvider
             };
 
             const cleanupWebView = () => {
-                if(cleanedUp) return;
+                if (cleanedUp) return;
                 cleanedUp = true;
                 valWebView.removeEventListener('did-redirect-navigation', redirectHandler);
                 valWebView.removeEventListener('did-navigate', navigateHandler);
                 valWebView.stop();
-                if(!shownSignIn) {
+                if (!shownSignIn) {
                     document.body.removeChild(valWebView);
                 }
             }
@@ -211,11 +203,11 @@ class RiotAuthProvider
             valRefreshWebView.partition = 'persist:valorant';
 
             const checkForToken = async (event) => {
-                if(event.url.startsWith('https://playvalorant.com/') && event.url.includes('access_token')) {
+                if (event.url.startsWith('https://playvalorant.com/') && event.url.includes('access_token')) {
                     cleanupWebView();
                     await this.loadDataFromURL(event.url, context);
                     resolve();
-                } else if(event.url.startsWith('https://auth.riotgames.com/login')) {
+                } else if (event.url.startsWith('https://auth.riotgames.com/login')) {
                     cleanupWebView();
                     this.waitingForSignIn = true;
                     reject('Waiting for sign in');
@@ -238,8 +230,7 @@ class RiotAuthProvider
         });
     }
 
-    async getEntitlement()
-    {
+    async getEntitlement() {
         return (await (await fetch('https://entitlements.auth.riotgames.com/api/token/v1', {
             method: 'POST',
             headers: {
@@ -250,8 +241,7 @@ class RiotAuthProvider
         })).json())['entitlements_token'];
     }
 
-    async getPUUID()
-    {
+    async getPUUID() {
         return (await (await fetch('https://auth.riotgames.com/userinfo', {
             method: 'POST',
             headers: {
@@ -262,14 +252,11 @@ class RiotAuthProvider
         })).json())['sub'];
     }
 
-    async _newInvoke(context)
-    {
+    async _newInvoke(context) {
         this.checkStore(context.store);
 
-        if(this.expiresAt === 0 && !this.waitingForSignIn)
-        {
-            if(await context.store.hasItem('expiresAt'))
-            {
+        if (this.expiresAt === 0 && !this.waitingForSignIn) {
+            if (await context.store.hasItem('expiresAt')) {
                 logger.info('Loading saved Riot data from store');
                 this.expiresAt = parseInt(await context.store.getItem('expiresAt'));
                 this.token = await context.store.getItem('token');
@@ -280,16 +267,15 @@ class RiotAuthProvider
 
         const currentTime = (new Date()).getTime();
         // Regenerate token after expiration
-        if(this.expiresAt <= currentTime)
-        {
-            if(this.waitingForSignIn) {
+        if (this.expiresAt <= currentTime) {
+            if (this.waitingForSignIn) {
                 throw new Error(signInError);
             }
 
             logger.info('Token has expired, attempting regeneration...');
             try {
                 await this.refreshData(context);
-            } catch(e) {
+            } catch (e) {
                 this.waitingForSignIn = true;
                 throw new Error(signInError);
             }
@@ -304,22 +290,15 @@ class RiotAuthProvider
         };
     }
 
-    async invoke(context)
-    {
-        if(!this.pending)
-        {
+    async invoke(context) {
+        if (!this.pending) {
             this.pending = this._newInvoke(context);
         }
-        try
-        {
+        try {
             return await this.pending;
-        }
-        catch(e)
-        {
+        } catch (e) {
             throw e;
-        }
-        finally
-        {
+        } finally {
             this.pending = null;
         }
     }

@@ -1,8 +1,5 @@
-
-function addPrefixToConsole(method)
-{
-    return (...args) =>
-    {
+function addPrefixToConsole(method) {
+    return (...args) => {
         console[method]('[Valorant]', ...args);
     };
 }
