@@ -1,11 +1,16 @@
 # Valorant Insomnia Plugin 
 Adds template tags to Insomnia with Valorant data.
 
-To populate the data, the plugin will ask you to sign in to your Riot account to use the tags `puuid`, `entitlement`, and `token`.
+To use the tags `puuid`, `entitlement`, and `token`, you must sign in to your Riot account
+from the dropdown menu on the top left, above Cookies.
 If you select "Stay signed in", the entitlement and token will be automatically regenerated when they expire.
 
-![Screenshot](https://i.imgur.com/0A9Oi31.png)
-![Screenshot 2](https://i.imgur.com/nLl46Np.png)
+## Features 
+ - Automatic regeneration of entitlement and token
+ - Automatic population of live local data such as current game id and lockfile port/password
+
+![Screenshot showing lockfile tags](https://user-images.githubusercontent.com/26680599/172743896-994eddf9-f8c4-4055-8f5b-6b7ac53dbda6.png)
+![Screenshot with sign in screen](https://user-images.githubusercontent.com/26680599/172743816-37c5fee2-3ce8-46b8-909e-56ea96d8bf65.png)
 
 Use `crtl+space` to insert tags. For more info, see [https://support.insomnia.rest/article/171-template-tags](https://support.insomnia.rest/article/171-template-tags)
 
