@@ -39,7 +39,7 @@ module.exports.workspaceActions = [
         async action(context)
         {
             riotAuthProvider.checkStore(context.store);
-            await riotAuthProvider.clearAccount();
+            await riotAuthProvider.signOut();
         }
     },
     {
@@ -48,8 +48,7 @@ module.exports.workspaceActions = [
         async action(context)
         {
             riotAuthProvider.checkStore(context.store);
-            await riotAuthProvider.clearAccount();
-            await riotAuthProvider.invoke(context);
+            await riotAuthProvider.signIn(context);
         }
     },
 ];

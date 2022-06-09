@@ -4,7 +4,9 @@ const fetchCookie = require('fetch-cookie/node-fetch');
 const tough = require('tough-cookie');
 const logger = require('../logger');
 
-const signInUrl = 'https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid';
+const signInUrl = 'https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in%2F&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid';
+const signInError = `Riot Account Not Signed In - 
+To sign in, click the dropdown at the top left, just above "Cookies" then click "Sign in to Riot account".`
 
 function getTokenDataFromURL(url)
 {
@@ -22,66 +24,21 @@ function getTokenDataFromURL(url)
     }
 }
 
-async function showSignIn()
-{
-    return new Promise((resolve, reject) =>
-    {
-        const loginWindow = new electron.remote.BrowserWindow({
-            show: false,
-            width: 470,
-            height: 880,
-            autoHideMenuBar: true
-        });
-        let foundToken = false;
-        loginWindow.webContents.on('will-redirect', (event, url) =>
-        {
-            logger.info('Login window redirecting...');
-            if(!foundToken && url.startsWith('https://playvalorant.com/opt_in'))
-            {
-                logger.info('Redirecting to url with tokens');
-                const tokenData = getTokenDataFromURL(url);
-                foundToken = true;
-            
-                loginWindow.webContents.session.cookies.get({domain: 'auth.riotgames.com'}).then(async cookies =>
-                {
-                    await Promise.all(cookies.map(cookie => loginWindow.webContents.session.cookies.remove(`https://${cookie.domain}${cookie.path}`, cookie.name)));
-                    loginWindow.destroy();
-                    resolve({
-                        tokenData,
-                        cookies
-                    });
-                });
-            }
-        });
-        loginWindow.once('ready-to-show', () =>
-        {
-            loginWindow.show();
-        });
-        loginWindow.on('close', () =>
-        {
-            logger.info('Login window was closed');
-            reject('window closed');
-        });
-        window.loginWindow = loginWindow;
-        loginWindow.loadURL(signInUrl);
-    });
-}
-
 class RiotAuthProvider
 {
     constructor()
     {
-        this.jar = new tough.CookieJar();
-        this.fetch = fetchCookie(nodeFetch, this.jar);
         this.expiresAt = 0;
         this.token = null;
         this.entitlement = null;
         this.puuid = null;
-        
+
+        this.waitingForSignIn = false;
+
         this.pending = null;
         this.store = null;
     }
-    
+
     checkStore(store)
     {
         if(this.store === null)
@@ -89,79 +46,201 @@ class RiotAuthProvider
             this.store = store;
         }
     }
-    
-    async clearAccount()
-    {
-        logger.info('Clearing account');
-        const cookieStore = electron.remote.getCurrentWindow().webContents.session.cookies;
-        const cookies = await cookieStore.get({domain: 'auth.riotgames.com'});
-        let removals = [];
-        for(const cookie of cookies)
-        {
-            removals.push(cookieStore.remove(`https://${cookie.domain}${cookie.path}`, cookie.name));
-        }
-        await Promise.all(removals);
-        if(this.store)
-        {
+
+    async loadDataFromURL(url, context) {
+        this.waitingForSignIn = false;
+        const tokenData = getTokenDataFromURL(url);
+        this.token = tokenData.accessToken;
+        logger.info('Loading entitlement and puuid');
+        this.entitlement = await this.getEntitlement();
+        this.puuid = await this.getPUUID();
+
+        // Subtract 5 minutes to avoid expiration race cases
+        this.expiresAt = (new Date()).getTime() + (tokenData.expiresIn * 1000) - (5 * 60 * 1000);
+
+        await Promise.all([
+            context.store.setItem('expiresAt', this.expiresAt),
+            context.store.setItem('token', this.token),
+            context.store.setItem('entitlement', this.entitlement),
+            context.store.setItem('puuid', this.puuid)
+        ]);
+    }
+
+    async signOut() {
+        logger.info('Signing out...');
+        this.expiresAt = 0;
+        this.token = null;
+        this.entitlement = null;
+        this.puuid = null;
+        if(this.store) {
             logger.info('Clearing saved store items');
             await Promise.all([
                 this.store.removeItem('expiresAt'),
                 this.store.removeItem('token'),
                 this.store.removeItem('entitlement'),
-                this.store.removeItem('puuid'),
-                this.store.removeItem('cookies')
+                this.store.removeItem('puuid')
             ]);
         }
-        this.jar.removeAllCookiesSync();
-        
-        this.expiresAt = 0;
-        this.token = null;
-        this.entitlement = null;
-        this.puuid = null;
-    }
-    
-    async logIn()
-    {
-        logger.info('Signing in...');
-        const data = await showSignIn();
-        for(const cookie of data.cookies)
-        {
-            if(cookie.session) continue;
-            
-            this.jar.setCookieSync(new tough.Cookie({
-                key: cookie.name,
-                value: cookie.value,
-                expires: new Date(cookie.expirationDate * 1000),
-                domain: cookie.domain,
-                path: cookie.path,
-                secure: cookie.secure,
-                httpOnly: cookie.httpOnly
-            }), 'https://auth.riotgames.com/');
-        }
-        return data.tokenData;
-    }
-    
-    hasLoginCookie()
-    {
-        return this.jar.getCookiesSync('https://auth.riotgames.com/').some(cookie => cookie.key === 'ssid' && cookie.expiryTime() > ((new Date()).getTime()));
-    }
-    
-    async reauthToken()
-    {
-        const response = await this.fetch(signInUrl, {
-            headers: {
-                'User-Agent': ''
-            },
-            follow: 0,
-            redirect: 'manual'
+        return new Promise((resolve, reject) => {
+            const valLogoutWebView = document.createElement('webview');
+            valLogoutWebView.style.display = 'none';
+            valLogoutWebView.nodeIntegration = false;
+            // Set partition to avoid Insomnia stripping out the Origin headers needed for CORS
+            valLogoutWebView.partition = 'persist:valorant';
+
+            valLogoutWebView.addEventListener('did-navigate', function navigateHandler(event) {
+                if(event.url === 'https://auth.riotgames.com/logout') {
+                    logger.info('Confirmed signed out');
+                    valLogoutWebView.stop();
+                    valLogoutWebView.removeEventListener('did-navigate', navigateHandler);
+                    document.body.removeChild(valLogoutWebView);
+                    this.waitingForSignIn = true;
+                    resolve();
+                }
+            });
+
+            valLogoutWebView.src = 'https://auth.riotgames.com/logout';
+            document.body.appendChild(valLogoutWebView);
         });
-        const redirectUri = response.headers.get('location');
-        return getTokenDataFromURL(redirectUri);
     }
-    
+
+    async signIn(context) {
+        // Sign out because it's unclear if an account is currently signed in
+        // This can happen when the action is initiated before a token retrieval attempt happens
+        if(!this.waitingForSignIn) {
+            await this.signOut();
+        }
+
+        logger.info('Signing in...');
+        return new Promise((resolve, reject) => {
+            const valWebView = document.createElement('webview');
+            valWebView.style.display = 'none';
+            valWebView.nodeIntegration = false;
+            // Set partition to avoid Insomnia stripping out the Origin headers needed for CORS
+            valWebView.partition = 'persist:valorant';
+
+            let shownSignIn = false;
+            let readyForHide = false;
+            let cleanedUp = false;
+
+            // Event handler to check for tokens in the urls of navigated and redirected events
+            const checkForToken = async (event) => {
+                if(event.url.startsWith('https://playvalorant.com/') && event.url.includes('access_token')) {
+                    cleanupWebView();
+
+                    // Close model
+                    if(shownSignIn) {
+                        const closeButtons = document.getElementsByClassName('modal__close-btn');
+                        if(closeButtons.length === 0) {
+                            logger.warning('No close buttons found for open model');
+                        } else {
+                            if(closeButtons.length > 1) {
+                                logger.warning('Found multiple close buttons! Closing them all.');
+                            }
+                            readyForHide = true;
+                            for(const closeButton of closeButtons) {
+                                closeButton.click();
+                            }
+                        }
+                    }
+
+                    // Load data
+                    await this.loadDataFromURL(event.url, context);
+
+                    logger.info('Done signing in');
+                    resolve();
+                }
+            };
+
+            // Event handler for when the modal is closed
+            const hideHandler = () => {
+                cleanupWebView();
+
+                if(!readyForHide) {
+                    reject('Window closed');
+                }
+            }
+
+            const redirectHandler = (event) => {
+                checkForToken(event);
+            };
+
+            const navigateHandler = (event) => {
+                if(event.url.startsWith('https://auth.riotgames.com/login') && !shownSignIn) {
+                    shownSignIn = true;
+                    logger.info('Showing sign in page...');
+
+                    document.body.removeChild(valWebView);
+                    valWebView.style.removeProperty('display');
+                    context.app.dialog('Riot Sign In', valWebView, {
+                        tall: true,
+                        wide: true,
+                        onHide: hideHandler
+                    });
+                    valWebView.parentNode.style.height = '100%';
+                    window.valWebView = valWebView;
+                }
+                checkForToken(event);
+            };
+
+            const cleanupWebView = () => {
+                if(cleanedUp) return;
+                cleanedUp = true;
+                valWebView.removeEventListener('did-redirect-navigation', redirectHandler);
+                valWebView.removeEventListener('did-navigate', navigateHandler);
+                valWebView.stop();
+                if(!shownSignIn) {
+                    document.body.removeChild(valWebView);
+                }
+            }
+
+            valWebView.addEventListener('did-redirect-navigation', redirectHandler);
+            valWebView.addEventListener('did-navigate', navigateHandler);
+
+            valWebView.src = signInUrl;
+            document.body.appendChild(valWebView);
+        });
+    }
+
+    async refreshData(context) {
+        return new Promise(async (resolve, reject) => {
+            const valRefreshWebView = document.createElement('webview');
+            valRefreshWebView.style.display = 'none';
+            valRefreshWebView.nodeIntegration = false;
+            // Set partition to avoid Insomnia stripping out the Origin headers needed for CORS
+            valRefreshWebView.partition = 'persist:valorant';
+
+            const checkForToken = async (event) => {
+                if(event.url.startsWith('https://playvalorant.com/') && event.url.includes('access_token')) {
+                    cleanupWebView();
+                    await this.loadDataFromURL(event.url, context);
+                    resolve();
+                } else if(event.url.startsWith('https://auth.riotgames.com/login')) {
+                    cleanupWebView();
+                    this.waitingForSignIn = true;
+                    reject('Waiting for sign in');
+                }
+            };
+
+            const navigateHandler = async (event) => {
+                await checkForToken(event);
+            };
+
+            const cleanupWebView = () => {
+                valRefreshWebView.removeEventListener('did-navigate', navigateHandler);
+                document.body.removeChild(valRefreshWebView);
+            }
+
+            valRefreshWebView.addEventListener('did-navigate', navigateHandler);
+
+            valRefreshWebView.src = signInUrl;
+            document.body.appendChild(valRefreshWebView);
+        });
+    }
+
     async getEntitlement()
     {
-        return (await (await this.fetch('https://entitlements.auth.riotgames.com/api/token/v1', {
+        return (await (await fetch('https://entitlements.auth.riotgames.com/api/token/v1', {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer ' + this.token,
@@ -170,10 +249,10 @@ class RiotAuthProvider
             },
         })).json())['entitlements_token'];
     }
-    
+
     async getPUUID()
     {
-        return (await (await this.fetch('https://auth.riotgames.com/userinfo', {
+        return (await (await fetch('https://auth.riotgames.com/userinfo', {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer ' + this.token,
@@ -182,12 +261,12 @@ class RiotAuthProvider
             },
         })).json())['sub'];
     }
-    
+
     async _newInvoke(context)
     {
         this.checkStore(context.store);
-        
-        if(this.expiresAt === 0)
+
+        if(this.expiresAt === 0 && !this.waitingForSignIn)
         {
             if(await context.store.hasItem('expiresAt'))
             {
@@ -196,68 +275,35 @@ class RiotAuthProvider
                 this.token = await context.store.getItem('token');
                 this.entitlement = await context.store.getItem('entitlement');
                 this.puuid = await context.store.getItem('puuid');
-                
-                this.jar = tough.CookieJar.deserializeSync(await context.store.getItem('cookies'));
-                this.fetch = fetchCookie(nodeFetch, this.jar);
             }
         }
-        
+
         const currentTime = (new Date()).getTime();
         // Regenerate token after expiration
         if(this.expiresAt <= currentTime)
         {
-            logger.info('Token has expired');
-            let tokenData = {};
-            try
-            {
-                if(this.hasLoginCookie())
-                {
-                    logger.info('Trying to re-auth with login cookie');
-                    try
-                    {
-                        tokenData = await this.reauthToken();
-                    }
-                    catch(e)
-                    {
-                        tokenData = await this.logIn();
-                    }
-                }
-                else
-                {
-                    logger.info('Requesting login');
-                    tokenData = await this.logIn();
-                }
+            if(this.waitingForSignIn) {
+                throw new Error(signInError);
             }
-            catch(e)
-            {
-                logger.error('Error while refreshing token', e);
-                throw new Error('Riot login failed');
+
+            logger.info('Token has expired, attempting regeneration...');
+            try {
+                await this.refreshData(context);
+            } catch(e) {
+                this.waitingForSignIn = true;
+                throw new Error(signInError);
             }
-            
-            this.token = tokenData.accessToken;
-            logger.info('Loading entitlement and puuid');
-            this.entitlement = await this.getEntitlement();
-            this.puuid = await this.getPUUID();
-            
-            // Subtract 5 minutes to avoid expiration race cases
-            this.expiresAt = (new Date()).getTime() + (tokenData.expiresIn * 1000) - (5 * 60 * 1000);
-            
-            await Promise.all([
-                context.store.setItem('expiresAt', this.expiresAt),
-                context.store.setItem('cookies', JSON.stringify(this.jar.serializeSync())),
-                context.store.setItem('token', this.token),
-                context.store.setItem('entitlement', this.entitlement),
-                context.store.setItem('puuid', this.puuid)
-            ]);
+
+            this.waitingForSignIn = false;
         }
-        
+
         return {
             entitlement: this.entitlement,
             token: this.token,
             puuid: this.puuid
         };
     }
-    
+
     async invoke(context)
     {
         if(!this.pending)
