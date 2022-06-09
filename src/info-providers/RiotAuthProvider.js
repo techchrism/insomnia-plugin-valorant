@@ -1,4 +1,3 @@
-const electron = require('electron');
 const nodeFetch = require('node-fetch');
 const fetchCookie = require('fetch-cookie/node-fetch');
 const tough = require('tough-cookie');
