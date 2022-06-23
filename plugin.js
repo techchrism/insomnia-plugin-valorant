@@ -1,5 +1,4 @@
 const remoteApi = require('./src/remoteAPI');
-const localApi = require('./src/localAPI');
 const os = require('os');
 
 module.exports.templateTags = [...remoteApi.templateTags];
@@ -16,6 +15,7 @@ module.exports.workspaceActions = [
 ];
 
 if (os.platform() === 'win32') {
+    const localApi = require('./src/localAPI');
     module.exports.templateTags.push(...localApi.templateTags);
     module.exports.workspaceActions.push(...localApi.workspaceActions);
 }
