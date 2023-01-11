@@ -191,7 +191,10 @@ class RiotAuthProvider {
                 cleanedUp = true;
                 valWebView.removeEventListener('did-redirect-navigation', redirectHandler);
                 valWebView.removeEventListener('did-navigate', navigateHandler);
-                valWebView.stop();
+                // Ignore errors relating to the webview not being attached to the dom
+                try {
+                    valWebView.stop();
+                } catch(ignored) {}
                 if (!shownSignIn) {
                     document.body.removeChild(valWebView);
                 }
