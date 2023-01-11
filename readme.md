@@ -57,3 +57,8 @@ The ID of the party the player is currently in.
 
 ## Debugging
 When reporting a bug, open the dev console (`crtl+alt+i`) and include the log in your report.
+
+## Dev Setup
+- clone the repo
+- `npm install`
+- if on Windows, run `npm run link-windows` to set up a junction to the default Insomnia plugins directory

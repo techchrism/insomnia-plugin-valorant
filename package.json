@@ -11,7 +11,8 @@
   },
   "main": "plugin.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "link-windows": "mklink /J \"%APPDATA%/Insomnia/plugins/insomnia-plugin-valorant\" \".\""
   },
   "keywords": [
     "Valorant",
