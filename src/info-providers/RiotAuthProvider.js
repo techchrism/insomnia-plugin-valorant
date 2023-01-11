@@ -106,6 +106,7 @@ class RiotAuthProvider {
         return new Promise((resolve, reject) => {
             const valWebView = document.createElement('webview');
             valWebView.style.display = 'none';
+            valWebView.classList.add('val-webview');
             valWebView.nodeIntegration = false;
             // Set partition to avoid Insomnia stripping out the Origin headers needed for CORS
             valWebView.partition = 'persist:valorant';
@@ -161,6 +162,19 @@ class RiotAuthProvider {
                     shownSignIn = true;
                     logger.info('Showing sign in page...');
 
+                    // Add styling to dom
+                    const styleID = 'val-auth-style';
+                    if(document.getElementById(styleID) === null) {
+                        const style = document.createElement('style');
+                        style.id = styleID;
+                        style.innerHTML = `
+                        div:has(> .val-webview) {
+                            height: 100%;
+                        }
+                        `;
+                        document.head.appendChild(style);
+                    }
+
                     document.body.removeChild(valWebView);
                     valWebView.style.removeProperty('display');
                     context.app.dialog('Riot Sign In', valWebView, {
@@ -168,8 +182,6 @@ class RiotAuthProvider {
                         wide: true,
                         onHide: hideHandler
                     });
-                    valWebView.parentNode.style.height = '100%';
-                    window.valWebView = valWebView;
                 }
                 checkForToken(event);
             };
