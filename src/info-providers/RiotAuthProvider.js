@@ -5,7 +5,7 @@ const logger = require('../logger');
 
 const signInUrl = 'https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in%2F&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid';
 const signInError = `Riot Account Not Signed In - 
-To sign in, click the dropdown at the top left, just above "Cookies" then click "Sign in to Riot account".`
+To sign in, click the collection dropdown at the top center (above the send button) then click "Sign in to Riot account".`
 
 function getTokenDataFromURL(url) {
     try {
