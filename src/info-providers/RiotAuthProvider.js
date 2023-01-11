@@ -103,6 +103,11 @@ class RiotAuthProvider {
         }
 
         logger.info('Signing in...');
+        // Avoid awaiting this because it persists the dropdown menu open over the modal ui
+        this.showSignInDialog(context);
+    }
+
+    async showSignInDialog(context) {
         return new Promise((resolve, reject) => {
             const valWebView = document.createElement('webview');
             valWebView.style.display = 'none';
