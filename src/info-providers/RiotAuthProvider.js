@@ -163,7 +163,8 @@ class RiotAuthProvider {
             };
 
             const navigateHandler = (event) => {
-                if (event.url.startsWith('https://auth.riotgames.com/login') && !shownSignIn) {
+                console.log(`Navigated to ${event.url}`);
+                if (event.url.startsWith('https://authenticate.riotgames.com') && !shownSignIn) {
                     shownSignIn = true;
                     logger.info('Showing sign in page...');
 
@@ -226,7 +227,7 @@ class RiotAuthProvider {
                     cleanupWebView();
                     await this.loadDataFromURL(event.url, context);
                     resolve();
-                } else if (event.url.startsWith('https://auth.riotgames.com/login')) {
+                } else if (event.url.startsWith('https://authenticate.riotgames.com/login')) {
                     cleanupWebView();
                     this.waitingForSignIn = true;
                     reject('Waiting for sign in');
