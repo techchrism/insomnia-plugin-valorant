@@ -2,7 +2,7 @@ import * as fs from 'node:fs'
 import * as readline from 'node:readline'
 import * as path from 'path'
 
-const infoKeys = ['puuid', 'shard', 'region', 'clientVersion'] as const
+export const infoKeys = ['puuid', 'shard', 'region', 'clientVersion'] as const
 
 const puuidRegex = new RegExp('Logged in user changed: (.+)', 'g')
 const regionShardRegex = new RegExp('https://glz-(.+?)-1.(.+?).a.pvp.net', 'g')
