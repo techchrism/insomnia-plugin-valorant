@@ -12,6 +12,7 @@
     "main": "./dist/index.js",
     "scripts": {
         "link-windows": "mklink /J \"%APPDATA%/Insomnia/plugins/insomnia-plugin-valorant\" \".\"",
+        "link-insomnium-windows": "mklink /J \"%APPDATA%/Insomnium/plugins/insomnia-plugin-valorant\" \".\"",
         "build": "tsc --build ./tsconfig.json",
         "watch": "tsc --build ./tsconfig.json --watch"
     },
@@ -33,7 +34,7 @@
         }
     },
     "devDependencies": {
-        "@types/node": "^20.3.1",
+        "@types/node": "^20.9.2",
         "typescript": "^5.1.3"
     }
 }
