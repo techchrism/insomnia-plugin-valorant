@@ -49,6 +49,8 @@ async function sleuth(file: string): Promise<Partial<LogInfo>> {
 
         if(infoKeys.every(key => info[key] !== undefined)) break
     }
+    rl.close()
+    fileStream.close()
 
     return info
 }
