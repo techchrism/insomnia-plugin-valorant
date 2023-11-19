@@ -1,4 +1,11 @@
 import logSleuth, {infoKeys, LogInfo} from './logSleuth'
+import {tryInOrder} from './util/try-in-order'
+
+interface ValorantAPIVersionResponse {
+    data: {
+        riotClientVersion: string
+    }
+}
 
 export const workspaceActions = [
     {
@@ -10,6 +17,8 @@ export const workspaceActions = [
 ];
 
 let cachedCompleteLogInfo: LogInfo
+let cachedClientVersion: string | undefined = undefined
+
 async function getOrLoadLogInfo() {
     if (cachedCompleteLogInfo !== undefined) return cachedCompleteLogInfo
 
@@ -37,7 +46,13 @@ module.exports.templateTags = [
         displayName: 'Client Version',
         description: 'Valorant client version',
         async run() {
-            return (await getOrLoadLogInfo()).clientVersion
+            if(cachedClientVersion !== undefined) return cachedClientVersion
+            //TODO the api endpoint and the logs have a different format for the version, need to check to ensure both work
+            cachedClientVersion = await tryInOrder([
+                async () => (await getOrLoadLogInfo()).clientVersion,
+                async () => ((await (await fetch('https://valorant-api.com/v1/version')).json()) as ValorantAPIVersionResponse).data.riotClientVersion
+            ])
+            return cachedClientVersion
         }
     }
 ]
