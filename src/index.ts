@@ -1,5 +1,6 @@
 import logSleuth, {infoKeys, LogInfo} from './logSleuth'
 import {tryInOrder} from './util/try-in-order'
+import {readLockfile} from './util/read-lockfile'
 
 interface ValorantAPIVersionResponse {
     data: {
@@ -53,6 +54,30 @@ module.exports.templateTags = [
                 async () => ((await (await fetch('https://valorant-api.com/v1/version')).json()) as ValorantAPIVersionResponse).data.riotClientVersion
             ])
             return cachedClientVersion
+        }
+    },
+    {
+        name: 'lockfileport',
+        displayName: 'Lockfile Port',
+        description: 'Valorant lockfile port',
+        async run() {
+            try {
+                return (await readLockfile()).port
+            } catch(e) {
+                throw new Error('Lockfile not found! Is Valorant running?')
+            }
+        }
+    },
+    {
+        name: 'lockfilepassword',
+        displayName: 'Lockfile Password',
+        description: 'Valorant lockfile password',
+        async run() {
+            try {
+                return (await readLockfile()).password
+            } catch(e) {
+                throw new Error('Lockfile not found! Is Valorant running?')
+            }
         }
     }
 ]
