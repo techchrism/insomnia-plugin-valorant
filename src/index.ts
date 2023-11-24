@@ -1,6 +1,7 @@
 import logSleuth, {infoKeys, LogInfo} from './logSleuth'
 import {tryInOrder} from './util/try-in-order'
 import {readLockfile} from './util/read-lockfile'
+import {hasWorkspaceActionsBug} from './util/has-workspace-actions-bug'
 
 interface ValorantAPIVersionResponse {
     data: {
@@ -19,14 +20,19 @@ interface TemplateTagContext {
     valorantOverrides?: ValorantOverrides
 }
 
+const clearValorantData = async (context: any) => {
+    await Promise.all(['expiresAt', 'cookies', 'token', 'entitlement', 'puuid', 'region'].map(key => context.store.removeItem(key)))
+    context['app'].alert('Cleared Valorant data!')
+}
 module.exports.workspaceActions = [
     {
         label: 'Remove Saved Valorant Data',
-        async action(context: any) {
-            await Promise.all(['expiresAt', 'cookies', 'token', 'entitlement', 'puuid', 'region'].map(key => context.store.removeItem(key)))
-        }
+        action: clearValorantData
     }
 ]
+if(hasWorkspaceActionsBug()) {
+    module.exports.requestActions = module.exports.workspaceActions
+}
 
 let cachedCompleteLogInfo: LogInfo
 let cachedClientVersion: string | undefined = undefined
