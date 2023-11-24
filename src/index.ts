@@ -8,14 +8,25 @@ interface ValorantAPIVersionResponse {
     }
 }
 
-export const workspaceActions = [
+interface ValorantOverrides {
+    clientPlatform?: string
+    clientVersion?: string
+    lockfilePort?: string
+    lockfilePassword?: string
+}
+
+interface TemplateTagContext {
+    valorantOverrides?: ValorantOverrides
+}
+
+module.exports.workspaceActions = [
     {
         label: 'Remove Saved Valorant Data',
         async action(context: any) {
             await Promise.all(['expiresAt', 'cookies', 'token', 'entitlement', 'puuid', 'region'].map(key => context.store.removeItem(key)))
         }
     }
-];
+]
 
 let cachedCompleteLogInfo: LogInfo
 let cachedClientVersion: string | undefined = undefined
@@ -38,7 +49,8 @@ module.exports.templateTags = [
         name: 'clientplatform',
         displayName: 'Client Platform',
         description: 'Valorant client platform',
-        async run() {
+        async run(ctx: TemplateTagContext) {
+            if(ctx.valorantOverrides?.clientPlatform !== undefined && ctx.valorantOverrides.clientPlatform.length !== 0) return ctx.valorantOverrides.clientPlatform
             return 'ew0KCSJwbGF0Zm9ybVR5cGUiOiAiUEMiLA0KCSJwbGF0Zm9ybU9TIjogIldpbmRvd3MiLA0KCSJwbGF0Zm9ybU9TVmVyc2lvbiI6ICIxMC4wLjE5MDQyLjEuMjU2LjY0Yml0IiwNCgkicGxhdGZvcm1DaGlwc2V0IjogIlVua25vd24iDQp9'
         }
     },
@@ -46,7 +58,8 @@ module.exports.templateTags = [
         name: 'clientversion',
         displayName: 'Client Version',
         description: 'Valorant client version',
-        async run() {
+        async run(ctx: TemplateTagContext) {
+            if(ctx.valorantOverrides?.clientVersion !== undefined && ctx.valorantOverrides.clientVersion.length !== 0) return ctx.valorantOverrides.clientVersion
             if(cachedClientVersion !== undefined) return cachedClientVersion
             //TODO the api endpoint and the logs have a different format for the version, need to check to ensure both work
             cachedClientVersion = await tryInOrder([
@@ -60,7 +73,8 @@ module.exports.templateTags = [
         name: 'lockfileport',
         displayName: 'Lockfile Port',
         description: 'Valorant lockfile port',
-        async run() {
+        async run(ctx: TemplateTagContext) {
+            if(ctx.valorantOverrides?.lockfilePort !== undefined && ctx.valorantOverrides.lockfilePort.length !== 0) return ctx.valorantOverrides.lockfilePort
             try {
                 return (await readLockfile()).port
             } catch(e) {
@@ -72,7 +86,8 @@ module.exports.templateTags = [
         name: 'lockfilepassword',
         displayName: 'Lockfile Password',
         description: 'Valorant lockfile password',
-        async run() {
+        async run(ctx: TemplateTagContext) {
+            if(ctx.valorantOverrides?.lockfilePassword !== undefined && ctx.valorantOverrides.lockfilePassword.length !== 0) return ctx.valorantOverrides.lockfilePassword
             try {
                 return (await readLockfile()).password
             } catch(e) {
