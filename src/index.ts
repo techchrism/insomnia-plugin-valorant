@@ -3,7 +3,6 @@ import {tryInOrder} from './util/try-in-order'
 import {readLockfile} from './util/read-lockfile'
 import {hasWorkspaceActionsBug} from './util/has-workspace-actions-bug'
 import {openWebViewPopup} from './util/auth/open-webview-popup'
-import {getEntitlement} from './util/auth/get-entitlement'
 import {getPUUID} from './util/auth/get-puuid'
 import {webviewLogout} from './util/auth/webview-logout'
 
@@ -57,13 +56,12 @@ module.exports.workspaceActions = [
             ])
             try {
                 const data = await openWebViewPopup(context)
-                const entitlement = await getEntitlement(data.accessToken)
                 const puuid = await getPUUID(data.accessToken)
                 await Promise.all([
                     context.store.setItem('successfulLogin', 'true'),
                     context.store.setItem('expiresAt', String((new Date()).getTime() + (Number(data.expiresIn) * 1000) - (5 * 60 * 1000))),
                     context.store.setItem('accessToken', data.accessToken),
-                    context.store.setItem('entitlement', entitlement),
+                    context.store.setItem('entitlement', data.entitlement),
                     context.store.setItem('puuid', puuid)
                 ])
             } catch (err) {

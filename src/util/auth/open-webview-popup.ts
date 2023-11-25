@@ -7,7 +7,7 @@ import {WebviewTag} from 'electron'
  * @param context The Insomnia context, used for opening a dialog element
  */
 export async function openWebViewPopup(context: any) {
-    return new Promise<{accessToken: string, expiresIn: string}>((resolve, reject) => {
+    return new Promise<{accessToken: string, entitlement: string, expiresIn: string}>((resolve, reject) => {
         const valWebView = document.createElement('webview') as WebviewTag
         valWebView.style.display = 'none'
         valWebView.classList.add('val-webview')
@@ -38,13 +38,14 @@ export async function openWebViewPopup(context: any) {
                 // Load data
                 const searchParams = new URLSearchParams((new URL(event.url)).hash.slice(1))
                 const accessToken = searchParams.get('access_token')
+                const entitlement = searchParams.get('id_token')
                 const expiresIn = searchParams.get('expires_in')
-                if(accessToken === null || expiresIn === null) {
+                if(accessToken === null || entitlement === null || expiresIn === null) {
                     cleanupWebView()
-                    reject('Invalid access token')
+                    reject('Invalid access token, entitlement, or expiry')
                 } else {
                     cleanupWebView()
-                    resolve({accessToken, expiresIn})
+                    resolve({accessToken, entitlement, expiresIn})
                 }
             }
         }
@@ -105,8 +106,7 @@ export async function openWebViewPopup(context: any) {
 
         valWebView.addEventListener('did-redirect-navigation', redirectHandler)
         valWebView.addEventListener('did-navigate', navigateHandler)
-
-        valWebView.src = 'https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in%2F&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid'
+        valWebView.src = 'https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid'
         document.body.appendChild(valWebView)
     })
 }
