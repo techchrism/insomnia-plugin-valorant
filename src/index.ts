@@ -3,7 +3,6 @@ import {tryInOrder} from './util/try-in-order'
 import {readLockfile} from './util/read-lockfile'
 import {hasWorkspaceActionsBug} from './util/has-workspace-actions-bug'
 import {openWebViewPopup} from './util/auth/open-webview-popup'
-import {getPUUID} from './util/auth/get-puuid'
 import {webviewLogout} from './util/auth/webview-logout'
 
 interface ValorantAPIVersionResponse {
@@ -38,7 +37,7 @@ module.exports.workspaceActions = [
         label: 'Remove Saved Valorant Data',
         action: async (context: Context) => {
             // cookies and region are not used anymore, but are kept for clearing old data
-            await Promise.all(['expiresAt', 'cookies', 'token', 'entitlement', 'puuid', 'region'].map(key => context.store.removeItem(key)))
+            await Promise.all(['successfulLogin', 'expiresAt', 'cookies', 'token', 'entitlement', 'puuid', 'region'].map(key => context.store.removeItem(key)))
             context['app'].alert('Cleared Valorant data!')
         }
     },
@@ -56,13 +55,12 @@ module.exports.workspaceActions = [
             ])
             try {
                 const data = await openWebViewPopup(context)
-                const puuid = await getPUUID(data.accessToken)
                 await Promise.all([
                     context.store.setItem('successfulLogin', 'true'),
                     context.store.setItem('expiresAt', String((new Date()).getTime() + (Number(data.expiresIn) * 1000) - (5 * 60 * 1000))),
                     context.store.setItem('accessToken', data.accessToken),
                     context.store.setItem('entitlement', data.entitlement),
-                    context.store.setItem('puuid', puuid)
+                    context.store.setItem('puuid', data.puuid)
                 ])
             } catch (err) {
                 await context.store.setItem('successfulLogin', 'false')

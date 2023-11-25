@@ -1,4 +1,5 @@
 import {WebviewTag} from 'electron'
+import {parseAuthRedirect} from './parse-auth-redirect'
 
 /**
  * Opens a popup window to sign in to Riot
@@ -7,7 +8,7 @@ import {WebviewTag} from 'electron'
  * @param context The Insomnia context, used for opening a dialog element
  */
 export async function openWebViewPopup(context: any) {
-    return new Promise<{accessToken: string, entitlement: string, expiresIn: string}>((resolve, reject) => {
+    return new Promise<ReturnType<typeof parseAuthRedirect>>((resolve, reject) => {
         const valWebView = document.createElement('webview') as WebviewTag
         valWebView.style.display = 'none'
         valWebView.classList.add('val-webview')
@@ -35,17 +36,10 @@ export async function openWebViewPopup(context: any) {
                     }
                 }
 
-                // Load data
-                const searchParams = new URLSearchParams((new URL(event.url)).hash.slice(1))
-                const accessToken = searchParams.get('access_token')
-                const entitlement = searchParams.get('id_token')
-                const expiresIn = searchParams.get('expires_in')
-                if(accessToken === null || entitlement === null || expiresIn === null) {
-                    cleanupWebView()
-                    reject('Invalid access token, entitlement, or expiry')
-                } else {
-                    cleanupWebView()
-                    resolve({accessToken, entitlement, expiresIn})
+                try {
+                    resolve(parseAuthRedirect(event.url))
+                } catch(e) {
+                    reject(e)
                 }
             }
         }

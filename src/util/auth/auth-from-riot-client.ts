@@ -1,6 +1,7 @@
 import {promises as fs} from 'node:fs'
 import path from 'node:path'
 import fetch from 'node-fetch'
+import {parseAuthRedirect} from './parse-auth-redirect'
 
 async function ssidReauth(ssid: string) {
     const response = await fetch('https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid', {
@@ -16,14 +17,7 @@ async function ssidReauth(ssid: string) {
     if(location === null) throw new Error('No location header in response!')
     if(!location.startsWith('https://playvalorant.com/opt_in')) throw new Error(`Invalid reauth location: ${location}`)
 
-    const searchParams = new URLSearchParams((new URL(response.headers.get('location')!)).hash.slice(1))
-
-    const token = searchParams.get('access_token')
-    const entitlement = searchParams.get('id_token')
-    const expirationTime = (Number(searchParams.get('expires_in')) * 1000) + Date.now() - (60_000)
-    if(token === null || entitlement === null) throw new Error('Invalid token or entitlement')
-
-    return {token, entitlement, expirationTime}
+    return parseAuthRedirect(location)
 }
 
 /**
