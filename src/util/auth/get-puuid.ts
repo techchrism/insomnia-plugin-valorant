@@ -1,3 +1,5 @@
+import fetch from 'node-fetch'
+
 export async function getPUUID(accessToken: string): Promise<string> {
     return (await (await fetch('https://auth.riotgames.com/userinfo', {
         method: 'POST',
@@ -6,5 +8,5 @@ export async function getPUUID(accessToken: string): Promise<string> {
             'Content-Type': 'application/json',
             'User-Agent': ''
         },
-    })).json())['sub'] as string
+    })).json() as any)['sub'] as string
 }
