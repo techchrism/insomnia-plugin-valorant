@@ -2,6 +2,10 @@ import logSleuth, {infoKeys, LogInfo} from './logSleuth'
 import {tryInOrder} from './util/try-in-order'
 import {readLockfile} from './util/read-lockfile'
 import {hasWorkspaceActionsBug} from './util/has-workspace-actions-bug'
+import {openWebViewPopup} from './util/auth/open-webview-popup'
+import {getEntitlement} from './util/auth/get-entitlement'
+import {getPUUID} from './util/auth/get-puuid'
+import {webviewLogout} from './util/auth/webview-logout'
 
 interface ValorantAPIVersionResponse {
     data: {
@@ -20,14 +24,44 @@ interface TemplateTagContext {
     valorantOverrides?: ValorantOverrides
 }
 
-const clearValorantData = async (context: any) => {
-    await Promise.all(['expiresAt', 'cookies', 'token', 'entitlement', 'puuid', 'region'].map(key => context.store.removeItem(key)))
-    context['app'].alert('Cleared Valorant data!')
+interface Context {
+    store: {
+        setItem(key: string, value: string): Promise<void>
+        removeItem(key: string): Promise<void>
+    }
+    app: {
+        alert(message: string): void
+    }
 }
+
 module.exports.workspaceActions = [
     {
         label: 'Remove Saved Valorant Data',
-        action: clearValorantData
+        action: async (context: any) => {
+            // cookies and region are not used anymore, but are kept for clearing old data
+            await Promise.all(['expiresAt', 'cookies', 'token', 'entitlement', 'puuid', 'region'].map(key => context.store.removeItem(key)))
+            context['app'].alert('Cleared Valorant data!')
+        }
+    },
+    {
+        label: 'Riot Login',
+        action: async (context: Context) => {
+            await webviewLogout()
+            try {
+                const data = await openWebViewPopup(context)
+                const entitlement = await getEntitlement(data.accessToken)
+                const puuid = await getPUUID(data.accessToken)
+                await Promise.all([
+                    context.store.setItem('successfulLogin', 'true'),
+                    context.store.setItem('expiresAt', String((new Date()).getTime() + (Number(data.expiresIn) * 1000) - (5 * 60 * 1000))),
+                    context.store.setItem('accessToken', data.accessToken),
+                    context.store.setItem('entitlement', entitlement),
+                    context.store.setItem('puuid', puuid)
+                ])
+            } catch (err) {
+                await context.store.setItem('successfulLogin', 'false')
+            }
+        }
     }
 ]
 if(hasWorkspaceActionsBug()) {
