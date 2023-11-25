@@ -37,7 +37,7 @@ interface Context {
 module.exports.workspaceActions = [
     {
         label: 'Remove Saved Valorant Data',
-        action: async (context: any) => {
+        action: async (context: Context) => {
             // cookies and region are not used anymore, but are kept for clearing old data
             await Promise.all(['expiresAt', 'cookies', 'token', 'entitlement', 'puuid', 'region'].map(key => context.store.removeItem(key)))
             context['app'].alert('Cleared Valorant data!')
@@ -46,7 +46,15 @@ module.exports.workspaceActions = [
     {
         label: 'Riot Login',
         action: async (context: Context) => {
+            //TODO make popup open immediately and show a loading screen until the logout action completes
             await webviewLogout()
+            await Promise.all([
+                context.store.removeItem('successfulLogin'),
+                context.store.removeItem('expiresAt'),
+                context.store.removeItem('accessToken'),
+                context.store.removeItem('entitlement'),
+                context.store.removeItem('puuid')
+            ])
             try {
                 const data = await openWebViewPopup(context)
                 const entitlement = await getEntitlement(data.accessToken)
@@ -61,6 +69,19 @@ module.exports.workspaceActions = [
             } catch (err) {
                 await context.store.setItem('successfulLogin', 'false')
             }
+        }
+    },
+    {
+        label: 'Riot Logout',
+        action: async (context: Context) => {
+            await webviewLogout()
+            await Promise.all([
+                context.store.removeItem('successfulLogin'),
+                context.store.removeItem('expiresAt'),
+                context.store.removeItem('accessToken'),
+                context.store.removeItem('entitlement'),
+                context.store.removeItem('puuid')
+            ])
         }
     }
 ]
