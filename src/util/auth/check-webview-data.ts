@@ -6,7 +6,7 @@ import {WebviewTag} from 'electron'
  * If not, the promise rejects with an error message
  */
 export async function checkWebViewData() {
-    return new Promise<{accessToken: string, expiresIn: string}>(async (resolve, reject) => {
+    return new Promise<{accessToken: string, entitlement: string, expiresIn: string}>(async (resolve, reject) => {
         const valRefreshWebView = document.createElement('webview') as WebviewTag
         valRefreshWebView.style.display = 'none'
         valRefreshWebView.nodeintegration = false
@@ -17,15 +17,17 @@ export async function checkWebViewData() {
             if (event.url.startsWith('https://playvalorant.com/') && event.url.includes('access_token')) {
                 cleanupWebView()
 
+                // Load data
                 const searchParams = new URLSearchParams((new URL(event.url)).hash.slice(1))
                 const accessToken = searchParams.get('access_token')
+                const entitlement = searchParams.get('id_token')
                 const expiresIn = searchParams.get('expires_in')
-                if(accessToken === null || expiresIn === null) {
+                if(accessToken === null || entitlement === null || expiresIn === null) {
                     cleanupWebView()
-                    reject('Invalid access token')
+                    reject('Invalid access token, entitlement, or expiry')
                 } else {
                     cleanupWebView()
-                    resolve({accessToken, expiresIn})
+                    resolve({accessToken, entitlement, expiresIn})
                 }
             } else if (event.url.startsWith('https://authenticate.riotgames.com/login')) {
                 cleanupWebView()
