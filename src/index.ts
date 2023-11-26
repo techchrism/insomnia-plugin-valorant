@@ -14,6 +14,7 @@ import {getCurrentGameMatchId} from './util/api/get-current-game-match-id'
 import {getPartyId} from './util/api/get-party-id'
 import {onlyOne} from './util/only-one'
 import {cacheResult} from './util/cache-result'
+import {getPASToken} from './util/auth/get-pas-token'
 
 interface ValorantAPIVersionResponse {
     data: {
@@ -29,6 +30,8 @@ interface ValorantOverrides {
     puuid?: string
     entitlement?: string
     token?: string
+    idToken?: string
+    pasToken?: string
     region?: string
     shard?: string,
     pregameMatchId?: string
@@ -85,12 +88,12 @@ if(hasWorkspaceActionsBug()) {
 }
 
 let cachedCompleteLogInfo: LogInfo | undefined = undefined
-let cachedAuthInfo: AuthRedirectData & {entitlement: string} | undefined = undefined
+let cachedAuthInfo: AuthRedirectData & {entitlement: string, pasToken?: string} | undefined = undefined
 let cachedRegionInfo: {region: string, shard: string} | undefined = undefined
 let cachedClientVersion: string | undefined = undefined
 
 async function getOrLoadLogInfo() {
-    if (cachedCompleteLogInfo !== undefined) return cachedCompleteLogInfo
+    if(cachedCompleteLogInfo !== undefined) return cachedCompleteLogInfo
 
     const info = await logSleuth()
     if (!info) throw new Error('Could not find log info')
@@ -103,7 +106,7 @@ async function getOrLoadLogInfo() {
 }
 
 async function getOrLoadAuthInfo() {
-    if (cachedAuthInfo !== undefined && cachedAuthInfo.expiresAt > Date.now()) return cachedAuthInfo
+    if(cachedAuthInfo !== undefined && cachedAuthInfo.expiresAt > Date.now()) return cachedAuthInfo
 
     try {
         const partialAuthInfo = await tryInOrderLabeled([
@@ -130,8 +133,19 @@ async function getOrLoadAuthInfo() {
     }
 }
 
+async function getOrLoadPASToken() {
+    if(cachedAuthInfo?.pasToken !== undefined && cachedAuthInfo.expiresAt > Date.now()) return cachedAuthInfo.pasToken
+
+    const authInfo = await getOrLoadAuthInfo()
+    cachedAuthInfo = {
+        ...authInfo,
+        pasToken: await getPASToken(authInfo.accessToken)
+    }
+    return cachedAuthInfo.pasToken
+}
+
 async function getOrLoadRegionInfo() {
-    if (cachedRegionInfo !== undefined) return cachedRegionInfo
+    if(cachedRegionInfo !== undefined) return cachedRegionInfo
 
     if(cachedCompleteLogInfo !== undefined) {
         cachedRegionInfo = {
@@ -277,6 +291,24 @@ module.exports.templateTags = [
         run: onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.entitlement !== undefined && ctx.valorantOverrides.entitlement.length !== 0) return ctx.valorantOverrides.entitlement
             return (await getOrLoadAuthInfo()).entitlement
+        })
+    },
+    {
+        name: 'valorant_id_token',
+        displayName: 'ID Token',
+        description: 'Valorant ID token',
+        run: onlyOne(async (ctx: TemplateTagContext) => {
+            if(ctx.valorantOverrides?.idToken !== undefined && ctx.valorantOverrides.idToken.length !== 0) return ctx.valorantOverrides.idToken
+            return (await getOrLoadAuthInfo()).idToken
+        })
+    },
+    {
+        name: 'valorant_pas_token',
+        displayName: 'PAS Token',
+        description: 'Valorant PAS token',
+        run: onlyOne(async (ctx: TemplateTagContext) => {
+            if(ctx.valorantOverrides?.pasToken !== undefined && ctx.valorantOverrides.pasToken.length !== 0) return ctx.valorantOverrides.pasToken
+            return await getOrLoadPASToken()
         })
     },
     {
