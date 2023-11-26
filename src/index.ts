@@ -6,6 +6,8 @@ import {openWebViewPopup} from './util/auth/open-webview-popup'
 import {webviewLogout} from './util/auth/webview-logout'
 import {AuthRedirectData} from './util/auth/parse-auth-redirect'
 import {authFromRiotClient} from './util/auth/auth-from-riot-client'
+import {checkWebViewData} from './util/auth/check-webview-data'
+import {getRegion} from './util/auth/get-region'
 
 interface ValorantAPIVersionResponse {
     data: {
@@ -94,6 +96,7 @@ if(hasWorkspaceActionsBug()) {
 
 let cachedCompleteLogInfo: LogInfo | undefined = undefined
 let cachedAuthInfo: AuthRedirectData | undefined = undefined
+let cachedRegionInfo: {region: string, shard: string} | undefined = undefined
 let cachedClientVersion: string | undefined = undefined
 
 async function getOrLoadLogInfo() {
@@ -109,15 +112,45 @@ async function getOrLoadLogInfo() {
     return cachedCompleteLogInfo
 }
 
-async function getOrLoadAuthInfo(context: any) {
+async function getOrLoadAuthInfo() {
     if (cachedAuthInfo !== undefined) return cachedAuthInfo
 
     cachedAuthInfo = await tryInOrder([
         async () => await authFromRiotClient(),
-        async () => await openWebViewPopup(context)
+        async () => await checkWebViewData()
     ])
 
     return cachedAuthInfo
+}
+
+async function getOrLoadRegionInfo() {
+    if (cachedRegionInfo !== undefined) return cachedRegionInfo
+
+    if(cachedCompleteLogInfo !== undefined) {
+        cachedRegionInfo = {
+            region: cachedCompleteLogInfo.region,
+            shard: cachedCompleteLogInfo.shard
+        }
+        return cachedRegionInfo
+    }
+
+    try {
+        const logInfo = await getOrLoadLogInfo()
+        cachedRegionInfo = {
+            region: logInfo.region,
+            shard: logInfo.shard
+        }
+        return cachedRegionInfo
+    } catch(logError) {
+        try {
+            const authInfo = await getOrLoadAuthInfo()
+            cachedRegionInfo = await getRegion(authInfo.accessToken, authInfo.entitlement)
+            return cachedRegionInfo
+        } catch(authError) {
+            throw [logError, authError]
+        }
+    }
+
 }
 
 module.exports.templateTags = [
@@ -183,8 +216,28 @@ module.exports.templateTags = [
 
             return await tryInOrder([
                 async () => (await getOrLoadLogInfo()).puuid,
-                async () => (await getOrLoadAuthInfo(ctx)).puuid
+                async () => (await getOrLoadAuthInfo()).puuid
             ])
+        }
+    },
+    {
+        name: 'valorantregion',
+        displayName: 'Region',
+        description: 'Valorant account region',
+        async run(ctx: TemplateTagContext) {
+            if(ctx.valorantOverrides?.region !== undefined && ctx.valorantOverrides.region.length !== 0) return ctx.valorantOverrides.region
+            if(cachedRegionInfo !== undefined) return cachedRegionInfo.region
+            return (await getOrLoadRegionInfo()).region
+        }
+    },
+    {
+        name: 'valorantshard',
+        displayName: 'Shard',
+        description: 'Valorant account shard',
+        async run(ctx: TemplateTagContext) {
+            if(ctx.valorantOverrides?.shard !== undefined && ctx.valorantOverrides.shard.length !== 0) return ctx.valorantOverrides.shard
+            if(cachedRegionInfo !== undefined) return cachedRegionInfo.shard
+            return (await getOrLoadRegionInfo()).shard
         }
     }
 ]
