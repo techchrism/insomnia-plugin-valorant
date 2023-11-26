@@ -24,8 +24,7 @@ export async function checkWebViewData() {
                 }
             } else if (event.url.startsWith('https://authenticate.riotgames.com/')) {
                 cleanupWebView()
-                //TODO add more descriptive error message including instructions to log in
-                reject('Waiting for sign in')
+                reject('No login data found or login data expired')
             }
         }
 

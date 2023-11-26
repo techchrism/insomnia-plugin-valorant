@@ -1,5 +1,5 @@
 import logSleuth, {infoKeys, LogInfo} from './logSleuth'
-import {tryInOrder} from './util/try-in-order'
+import {tryInOrder, tryInOrderLabeled} from './util/try-in-order'
 import {readLockfile} from './util/read-lockfile'
 import {hasWorkspaceActionsBug} from './util/has-workspace-actions-bug'
 import {openWebViewPopup} from './util/auth/open-webview-popup'
@@ -105,16 +105,29 @@ async function getOrLoadLogInfo() {
 async function getOrLoadAuthInfo() {
     if (cachedAuthInfo !== undefined && cachedAuthInfo.expiresAt > Date.now()) return cachedAuthInfo
 
-    const partialAuthInfo = await tryInOrder([
-        async () => await authFromRiotClient(),
-        async () => await checkWebViewData()
-    ])
-    cachedAuthInfo = {
-        ...partialAuthInfo,
-        entitlement: await getEntitlement(partialAuthInfo.accessToken)
+    try {
+        const partialAuthInfo = await tryInOrderLabeled([
+            {
+                label: 'Use auth from Riot Client',
+                func: async () => await authFromRiotClient()
+            },
+            {
+                label: 'Use auth from stored login workspace action',
+                func: async () => await checkWebViewData()
+            }
+        ])
+        cachedAuthInfo = {
+            ...partialAuthInfo,
+            entitlement: await getEntitlement(partialAuthInfo.accessToken)
+        }
+        return cachedAuthInfo
+    } catch(e) {
+        let message = `${e}\n\nTry logging in with the "Riot Login" workspace action`
+        if(hasWorkspaceActionsBug()) {
+            message += '\n\nNote - It seems like you\'re using a version of Insomnia that has a bug with workspace actions. As a workaround, you can use the dropdown actions on a request.'
+        }
+        throw new Error(message)
     }
-
-    return cachedAuthInfo
 }
 
 async function getOrLoadRegionInfo() {
@@ -216,9 +229,15 @@ module.exports.templateTags = [
             if(cachedAuthInfo !== undefined) return cachedAuthInfo.puuid
             if(cachedCompleteLogInfo !== undefined) return cachedCompleteLogInfo.puuid
 
-            return await tryInOrder([
-                async () => (await getOrLoadLogInfo()).puuid,
-                async () => (await getOrLoadAuthInfo()).puuid
+            return await tryInOrderLabeled([
+                {
+                    label: 'Use puuid from log file scraping',
+                    func: async () => (await getOrLoadLogInfo()).puuid
+                },
+                {
+                    label: 'Use puuid from auth info',
+                    func: async () => (await getOrLoadAuthInfo()).puuid
+                }
             ])
         })
     },
