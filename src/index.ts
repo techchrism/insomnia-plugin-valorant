@@ -140,9 +140,10 @@ async function getOrLoadRegionInfo() {
 
 }
 
+// Some names are preceded by "valorant_" because I expect they might conflict with tags added by other plugins
 module.exports.templateTags = [
     {
-        name: 'clientplatform',
+        name: 'client_platform',
         displayName: 'Client Platform',
         description: 'Valorant client platform',
         async run(ctx: TemplateTagContext) {
@@ -151,7 +152,7 @@ module.exports.templateTags = [
         }
     },
     {
-        name: 'clientversion',
+        name: 'client_version',
         displayName: 'Client Version',
         description: 'Valorant client version',
         async run(ctx: TemplateTagContext) {
@@ -166,7 +167,7 @@ module.exports.templateTags = [
         }
     },
     {
-        name: 'lockfileport',
+        name: 'lockfile_port',
         displayName: 'Lockfile Port',
         description: 'Valorant lockfile port',
         async run(ctx: TemplateTagContext) {
@@ -179,7 +180,7 @@ module.exports.templateTags = [
         }
     },
     {
-        name: 'lockfilepassword',
+        name: 'lockfile_password',
         displayName: 'Lockfile Password',
         description: 'Valorant lockfile password',
         async run(ctx: TemplateTagContext) {
@@ -208,7 +209,7 @@ module.exports.templateTags = [
         }
     },
     {
-        name: 'valorantregion',
+        name: 'valorant_region',
         displayName: 'Region',
         description: 'Valorant account region',
         async run(ctx: TemplateTagContext) {
@@ -218,7 +219,7 @@ module.exports.templateTags = [
         }
     },
     {
-        name: 'valorantshard',
+        name: 'valorant_shard',
         displayName: 'Shard',
         description: 'Valorant account shard',
         async run(ctx: TemplateTagContext) {
@@ -228,7 +229,7 @@ module.exports.templateTags = [
         }
     },
     {
-        name: 'valoranttoken',
+        name: 'valorant_token',
         displayName: 'Token',
         description: 'Valorant auth token',
         async run(ctx: TemplateTagContext) {
@@ -237,7 +238,7 @@ module.exports.templateTags = [
         }
     },
     {
-        name: 'valorantentitlement',
+        name: 'valorant_entitlement',
         displayName: 'Entitlement',
         description: 'Valorant entitlement token',
         async run(ctx: TemplateTagContext) {
