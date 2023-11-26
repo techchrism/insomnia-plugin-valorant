@@ -40,6 +40,8 @@
         "typescript": "^5.3.2"
     },
     "dependencies": {
-        "node-fetch": "^2.7.0"
+        "@types/ws": "^8.5.10",
+        "node-fetch": "^2.7.0",
+        "ws": "^8.14.2"
     }
 }

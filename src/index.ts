@@ -15,6 +15,7 @@ import {getPartyId} from './util/api/get-party-id'
 import {onlyOne} from './util/only-one'
 import {cacheResult} from './util/cache-result'
 import {getPASToken} from './util/auth/get-pas-token'
+import {XMPPManager} from './XMPPManager'
 
 interface ValorantAPIVersionResponse {
     data: {
@@ -86,6 +87,8 @@ module.exports.workspaceActions = [
 if(hasWorkspaceActionsBug()) {
     module.exports.requestActions = module.exports.workspaceActions
 }
+
+const xmppManager = new XMPPManager()
 
 let cachedCompleteLogInfo: LogInfo | undefined = undefined
 let cachedAuthInfo: AuthRedirectData & {entitlement: string, pasToken?: string} | undefined = undefined
@@ -359,5 +362,13 @@ module.exports.templateTags = [
 
             return await getPartyId(shard, region, puuid, clientVersion, token, entitlement)
         }))
+    },
+    {
+        name: 'xmpp_websocket_url',
+        displayName: 'Riot XMPP',
+        description: 'Riot XMPP websocket URL',
+        run: onlyOne(async () => {
+            return await xmppManager.getWebsocketURL()
+        })
     }
 ]
