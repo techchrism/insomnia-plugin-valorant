@@ -1,7 +1,7 @@
 export interface AuthRedirectData {
     accessToken: string
     idToken: string
-    expiresIn: string
+    expiresAt: number
     puuid: string
 }
 
@@ -24,7 +24,7 @@ export function parseAuthRedirect(url: string): AuthRedirectData {
     return {
         accessToken,
         idToken,
-        expiresIn,
+        expiresAt: (Number(expiresIn) * 1000) + Date.now() - 60_000,
         puuid: accessTokenData.sub
     }
 }

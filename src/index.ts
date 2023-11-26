@@ -95,8 +95,7 @@ async function getOrLoadLogInfo() {
 }
 
 async function getOrLoadAuthInfo() {
-    //TODO check expiry
-    if (cachedAuthInfo !== undefined) return cachedAuthInfo
+    if (cachedAuthInfo !== undefined && cachedAuthInfo.expiresAt > Date.now()) return cachedAuthInfo
 
     const partialAuthInfo = await tryInOrder([
         async () => await authFromRiotClient(),
