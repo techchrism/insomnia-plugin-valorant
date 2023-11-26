@@ -1,8 +1,15 @@
+export interface AuthRedirectData {
+    accessToken: string
+    entitlement: string
+    expiresIn: string
+    puuid: string
+}
+
 function throwExpression(errorMessage: string): never {
     throw new Error(errorMessage)
 }
 
-export function parseAuthRedirect(url: string) {
+export function parseAuthRedirect(url: string): AuthRedirectData {
     const searchParams = new URLSearchParams((new URL(url)).hash.slice(1))
     const accessToken = searchParams.get('access_token') ?? throwExpression('Access token missing from url')
     const entitlement = searchParams.get('id_token') ?? throwExpression('Entitlement missing from url')

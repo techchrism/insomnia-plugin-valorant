@@ -4,6 +4,8 @@ import {readLockfile} from './util/read-lockfile'
 import {hasWorkspaceActionsBug} from './util/has-workspace-actions-bug'
 import {openWebViewPopup} from './util/auth/open-webview-popup'
 import {webviewLogout} from './util/auth/webview-logout'
+import {AuthRedirectData} from './util/auth/parse-auth-redirect'
+import {authFromRiotClient} from './util/auth/auth-from-riot-client'
 
 interface ValorantAPIVersionResponse {
     data: {
@@ -16,6 +18,11 @@ interface ValorantOverrides {
     clientVersion?: string
     lockfilePort?: string
     lockfilePassword?: string
+    puuid?: string
+    entitlement?: string
+    token?: string
+    region?: string
+    shard?: string
 }
 
 interface TemplateTagContext {
@@ -85,7 +92,8 @@ if(hasWorkspaceActionsBug()) {
     module.exports.requestActions = module.exports.workspaceActions
 }
 
-let cachedCompleteLogInfo: LogInfo
+let cachedCompleteLogInfo: LogInfo | undefined = undefined
+let cachedAuthInfo: AuthRedirectData | undefined = undefined
 let cachedClientVersion: string | undefined = undefined
 
 async function getOrLoadLogInfo() {
@@ -99,6 +107,17 @@ async function getOrLoadLogInfo() {
     cachedCompleteLogInfo = info as LogInfo
 
     return cachedCompleteLogInfo
+}
+
+async function getOrLoadAuthInfo(context: any) {
+    if (cachedAuthInfo !== undefined) return cachedAuthInfo
+
+    cachedAuthInfo = await tryInOrder([
+        async () => await authFromRiotClient(),
+        async () => await openWebViewPopup(context)
+    ])
+
+    return cachedAuthInfo
 }
 
 module.exports.templateTags = [
@@ -150,6 +169,22 @@ module.exports.templateTags = [
             } catch(e) {
                 throw new Error('Lockfile not found! Is Valorant running?')
             }
+        }
+    },
+    {
+        name: 'puuid',
+        displayName: 'PUUID',
+        description: 'Valorant PUUID',
+        async run(ctx: TemplateTagContext) {
+            if(ctx.valorantOverrides?.puuid !== undefined && ctx.valorantOverrides.puuid.length !== 0) return ctx.valorantOverrides.puuid
+
+            if(cachedAuthInfo !== undefined) return cachedAuthInfo.puuid
+            if(cachedCompleteLogInfo !== undefined) return cachedCompleteLogInfo.puuid
+
+            return await tryInOrder([
+                async () => (await getOrLoadLogInfo()).puuid,
+                async () => (await getOrLoadAuthInfo(ctx)).puuid
+            ])
         }
     }
 ]
