@@ -1,4 +1,4 @@
-import logSleuth, {infoKeys, LogInfo} from './logSleuth'
+import logSleuth, {infoKeys, LogInfo} from './util/log-sleuth'
 import {tryInOrder, tryInOrderLabeled} from './util/try-in-order'
 import {readLockfile} from './util/read-lockfile'
 import {hasWorkspaceActionsBug} from './util/has-workspace-actions-bug'
