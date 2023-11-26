@@ -148,7 +148,11 @@ async function getOrLoadRegionInfo() {
 
 async function getOrLoadClientVersion() {
     if(cachedClientVersion !== undefined) return cachedClientVersion
-    //TODO the api endpoint and the logs have a different format for the version, need to check to ensure both work
+    /*
+        note that the api endpoint and the logs have a different format for the version, but it seems both work
+        log version: release-07.10-6-2100005
+        api version: release-07.10-shipping-6-2100005
+     */
     cachedClientVersion = await tryInOrder([
         async () => (await getOrLoadLogInfo()).clientVersion,
         async () => ((await (await fetch('https://valorant-api.com/v1/version')).json()) as ValorantAPIVersionResponse).data.riotClientVersion
