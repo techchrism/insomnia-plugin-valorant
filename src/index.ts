@@ -239,5 +239,25 @@ module.exports.templateTags = [
             if(cachedRegionInfo !== undefined) return cachedRegionInfo.shard
             return (await getOrLoadRegionInfo()).shard
         }
+    },
+    {
+        name: 'valoranttoken',
+        displayName: 'Token',
+        description: 'Valorant auth token',
+        async run(ctx: TemplateTagContext) {
+            if(ctx.valorantOverrides?.token !== undefined && ctx.valorantOverrides.token.length !== 0) return ctx.valorantOverrides.token
+            if(cachedAuthInfo !== undefined) return cachedAuthInfo.accessToken
+            return (await getOrLoadAuthInfo()).accessToken
+        }
+    },
+    {
+        name: 'valorantentitlement',
+        displayName: 'Entitlement',
+        description: 'Valorant entitlement token',
+        async run(ctx: TemplateTagContext) {
+            if(ctx.valorantOverrides?.entitlement !== undefined && ctx.valorantOverrides.entitlement.length !== 0) return ctx.valorantOverrides.entitlement
+            if(cachedAuthInfo !== undefined) return cachedAuthInfo.entitlement
+            return (await getOrLoadAuthInfo()).entitlement
+        }
     }
 ]
