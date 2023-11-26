@@ -22,8 +22,9 @@ export async function checkWebViewData() {
                 } catch(e) {
                     reject(e)
                 }
-            } else if (event.url.startsWith('https://authenticate.riotgames.com/login')) {
+            } else if (event.url.startsWith('https://authenticate.riotgames.com/')) {
                 cleanupWebView()
+                //TODO add more descriptive error message including instructions to log in
                 reject('Waiting for sign in')
             }
         }
