@@ -12,12 +12,12 @@ const regionToShardMap = new Map<string, string>([
 /**
  * Get the region and shard from a token and entitlement
  * @param token The auth token
- * @param entitlement The entitlement token
+ * @param idToken The ID token
  */
-export async function getRegion(token: string, entitlement: string) {
+export async function getRegion(token: string, idToken: string) {
     const region = (await (await fetch('https://riot-geo.pas.si.riotgames.com/pas/v1/product/valorant', {
         method: 'PUT',
-        body: JSON.stringify({id_token: entitlement}),
+        body: JSON.stringify({id_token: idToken}),
         headers: {
             'Authorization': `Bearer ${token}`,
             'User-Agent': ''

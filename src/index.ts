@@ -8,6 +8,7 @@ import {AuthRedirectData} from './util/auth/parse-auth-redirect'
 import {authFromRiotClient} from './util/auth/auth-from-riot-client'
 import {checkWebViewData} from './util/auth/check-webview-data'
 import {getRegion} from './util/auth/get-region'
+import {getEntitlement} from './util/auth/get-entitlement'
 
 interface ValorantAPIVersionResponse {
     data: {
@@ -55,38 +56,19 @@ module.exports.workspaceActions = [
         action: async (context: Context) => {
             //TODO make popup open immediately and show a loading screen until the logout action completes
             await webviewLogout()
-            await Promise.all([
-                context.store.removeItem('successfulLogin'),
-                context.store.removeItem('expiresAt'),
-                context.store.removeItem('accessToken'),
-                context.store.removeItem('entitlement'),
-                context.store.removeItem('puuid')
-            ])
             try {
-                const data = await openWebViewPopup(context)
-                await Promise.all([
-                    context.store.setItem('successfulLogin', 'true'),
-                    context.store.setItem('expiresAt', String((new Date()).getTime() + (Number(data.expiresIn) * 1000) - (5 * 60 * 1000))),
-                    context.store.setItem('accessToken', data.accessToken),
-                    context.store.setItem('entitlement', data.entitlement),
-                    context.store.setItem('puuid', data.puuid)
-                ])
-            } catch (err) {
-                await context.store.setItem('successfulLogin', 'false')
-            }
+                const partialAuthInfo = await openWebViewPopup(context)
+                cachedAuthInfo = {
+                    ...partialAuthInfo,
+                    entitlement: await getEntitlement(partialAuthInfo.accessToken)
+                }
+            } catch(ignored) {}
         }
     },
     {
         label: 'Riot Logout',
-        action: async (context: Context) => {
+        action: async () => {
             await webviewLogout()
-            await Promise.all([
-                context.store.removeItem('successfulLogin'),
-                context.store.removeItem('expiresAt'),
-                context.store.removeItem('accessToken'),
-                context.store.removeItem('entitlement'),
-                context.store.removeItem('puuid')
-            ])
         }
     }
 ]
@@ -95,7 +77,7 @@ if(hasWorkspaceActionsBug()) {
 }
 
 let cachedCompleteLogInfo: LogInfo | undefined = undefined
-let cachedAuthInfo: AuthRedirectData | undefined = undefined
+let cachedAuthInfo: AuthRedirectData & {entitlement: string} | undefined = undefined
 let cachedRegionInfo: {region: string, shard: string} | undefined = undefined
 let cachedClientVersion: string | undefined = undefined
 
@@ -113,12 +95,17 @@ async function getOrLoadLogInfo() {
 }
 
 async function getOrLoadAuthInfo() {
+    //TODO check expiry
     if (cachedAuthInfo !== undefined) return cachedAuthInfo
 
-    cachedAuthInfo = await tryInOrder([
+    const partialAuthInfo = await tryInOrder([
         async () => await authFromRiotClient(),
         async () => await checkWebViewData()
     ])
+    cachedAuthInfo = {
+        ...partialAuthInfo,
+        entitlement: await getEntitlement(partialAuthInfo.accessToken)
+    }
 
     return cachedAuthInfo
 }
@@ -144,7 +131,7 @@ async function getOrLoadRegionInfo() {
     } catch(logError) {
         try {
             const authInfo = await getOrLoadAuthInfo()
-            cachedRegionInfo = await getRegion(authInfo.accessToken, authInfo.entitlement)
+            cachedRegionInfo = await getRegion(authInfo.accessToken, authInfo.idToken)
             return cachedRegionInfo
         } catch(authError) {
             throw [logError, authError]
@@ -246,7 +233,6 @@ module.exports.templateTags = [
         description: 'Valorant auth token',
         async run(ctx: TemplateTagContext) {
             if(ctx.valorantOverrides?.token !== undefined && ctx.valorantOverrides.token.length !== 0) return ctx.valorantOverrides.token
-            if(cachedAuthInfo !== undefined) return cachedAuthInfo.accessToken
             return (await getOrLoadAuthInfo()).accessToken
         }
     },
@@ -256,7 +242,6 @@ module.exports.templateTags = [
         description: 'Valorant entitlement token',
         async run(ctx: TemplateTagContext) {
             if(ctx.valorantOverrides?.entitlement !== undefined && ctx.valorantOverrides.entitlement.length !== 0) return ctx.valorantOverrides.entitlement
-            if(cachedAuthInfo !== undefined) return cachedAuthInfo.entitlement
             return (await getOrLoadAuthInfo()).entitlement
         }
     }
