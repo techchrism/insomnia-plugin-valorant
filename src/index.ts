@@ -12,6 +12,8 @@ import {getEntitlement} from './util/auth/get-entitlement'
 import {getPregameMatchId} from './util/api/get-pregame-match-id'
 import {getCurrentGameMatchId} from './util/api/get-current-game-match-id'
 import {getPartyId} from './util/api/get-party-id'
+import {onlyOne} from './util/only-one'
+import {cacheResult} from './util/cache-result'
 
 interface ValorantAPIVersionResponse {
     data: {
@@ -160,51 +162,51 @@ module.exports.templateTags = [
         name: 'client_platform',
         displayName: 'Client Platform',
         description: 'Valorant client platform',
-        async run(ctx: TemplateTagContext) {
+        run: onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.clientPlatform !== undefined && ctx.valorantOverrides.clientPlatform.length !== 0) return ctx.valorantOverrides.clientPlatform
             return 'ew0KCSJwbGF0Zm9ybVR5cGUiOiAiUEMiLA0KCSJwbGF0Zm9ybU9TIjogIldpbmRvd3MiLA0KCSJwbGF0Zm9ybU9TVmVyc2lvbiI6ICIxMC4wLjE5MDQyLjEuMjU2LjY0Yml0IiwNCgkicGxhdGZvcm1DaGlwc2V0IjogIlVua25vd24iDQp9'
-        }
+        })
     },
     {
         name: 'client_version',
         displayName: 'Client Version',
         description: 'Valorant client version',
-        async run(ctx: TemplateTagContext) {
+        run: onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.clientVersion !== undefined && ctx.valorantOverrides.clientVersion.length !== 0) return ctx.valorantOverrides.clientVersion
             return await getOrLoadClientVersion()
-        }
+        })
     },
     {
         name: 'lockfile_port',
         displayName: 'Lockfile Port',
         description: 'Valorant lockfile port',
-        async run(ctx: TemplateTagContext) {
+        run: onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.lockfilePort !== undefined && ctx.valorantOverrides.lockfilePort.length !== 0) return ctx.valorantOverrides.lockfilePort
             try {
                 return (await readLockfile()).port
             } catch(e) {
                 throw new Error('Lockfile not found! Is Valorant running?')
             }
-        }
+        })
     },
     {
         name: 'lockfile_password',
         displayName: 'Lockfile Password',
         description: 'Valorant lockfile password',
-        async run(ctx: TemplateTagContext) {
+        run: onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.lockfilePassword !== undefined && ctx.valorantOverrides.lockfilePassword.length !== 0) return ctx.valorantOverrides.lockfilePassword
             try {
                 return (await readLockfile()).password
             } catch(e) {
                 throw new Error('Lockfile not found! Is Valorant running?')
             }
-        }
+        })
     },
     {
         name: 'puuid',
         displayName: 'PUUID',
         description: 'Valorant PUUID',
-        async run(ctx: TemplateTagContext) {
+        run: onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.puuid !== undefined && ctx.valorantOverrides.puuid.length !== 0) return ctx.valorantOverrides.puuid
 
             if(cachedAuthInfo !== undefined) return cachedAuthInfo.puuid
@@ -214,52 +216,51 @@ module.exports.templateTags = [
                 async () => (await getOrLoadLogInfo()).puuid,
                 async () => (await getOrLoadAuthInfo()).puuid
             ])
-        }
+        })
     },
     {
         name: 'valorant_region',
         displayName: 'Region',
         description: 'Valorant account region',
-        async run(ctx: TemplateTagContext) {
+        run: onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.region !== undefined && ctx.valorantOverrides.region.length !== 0) return ctx.valorantOverrides.region
             if(cachedRegionInfo !== undefined) return cachedRegionInfo.region
             return (await getOrLoadRegionInfo()).region
-        }
+        })
     },
     {
         name: 'valorant_shard',
         displayName: 'Shard',
         description: 'Valorant account shard',
-        async run(ctx: TemplateTagContext) {
+        run: onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.shard !== undefined && ctx.valorantOverrides.shard.length !== 0) return ctx.valorantOverrides.shard
             if(cachedRegionInfo !== undefined) return cachedRegionInfo.shard
             return (await getOrLoadRegionInfo()).shard
-        }
+        })
     },
     {
         name: 'valorant_token',
         displayName: 'Token',
         description: 'Valorant auth token',
-        async run(ctx: TemplateTagContext) {
+        run: onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.token !== undefined && ctx.valorantOverrides.token.length !== 0) return ctx.valorantOverrides.token
             return (await getOrLoadAuthInfo()).accessToken
-        }
+        })
     },
     {
         name: 'valorant_entitlement',
         displayName: 'Entitlement',
         description: 'Valorant entitlement token',
-        async run(ctx: TemplateTagContext) {
+        run: onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.entitlement !== undefined && ctx.valorantOverrides.entitlement.length !== 0) return ctx.valorantOverrides.entitlement
             return (await getOrLoadAuthInfo()).entitlement
-        }
+        })
     },
     {
         name: 'pregame_match_id',
         displayName: 'Pre-Game Match ID',
         description: 'Valorant pre-game match ID',
-        async run(ctx: TemplateTagContext) {
-            //TODO cache results for a while to prevent api spam on mouseover
+        run: cacheResult(1_000, onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.pregameMatchId !== undefined && ctx.valorantOverrides.pregameMatchId.length !== 0) return ctx.valorantOverrides.pregameMatchId
 
             const token = (ctx.valorantOverrides?.token !== undefined && ctx.valorantOverrides.token.length !== 0) ? ctx.valorantOverrides.token : (await getOrLoadAuthInfo()).accessToken
@@ -269,13 +270,13 @@ module.exports.templateTags = [
             const puuid = (ctx.valorantOverrides?.puuid !== undefined && ctx.valorantOverrides.puuid.length !== 0) ? ctx.valorantOverrides.puuid : (await getOrLoadAuthInfo()).puuid
 
             return await getPregameMatchId(shard, region, puuid, token, entitlement)
-        }
+        }))
     },
     {
         name: 'current_game_match_id',
         displayName: 'Current Game Match ID',
         description: 'Valorant current game match ID',
-        async run(ctx: TemplateTagContext) {
+        run: cacheResult(1_000, onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.currentGameMatchId !== undefined && ctx.valorantOverrides.currentGameMatchId.length !== 0) return ctx.valorantOverrides.currentGameMatchId
 
             const token = (ctx.valorantOverrides?.token !== undefined && ctx.valorantOverrides.token.length !== 0) ? ctx.valorantOverrides.token : (await getOrLoadAuthInfo()).accessToken
@@ -285,13 +286,13 @@ module.exports.templateTags = [
             const puuid = (ctx.valorantOverrides?.puuid !== undefined && ctx.valorantOverrides.puuid.length !== 0) ? ctx.valorantOverrides.puuid : (await getOrLoadAuthInfo()).puuid
 
             return getCurrentGameMatchId(shard, region, puuid, token, entitlement)
-        }
+        }))
     },
     {
         name: 'party_id',
         displayName: 'Party ID',
         description: 'Valorant party ID',
-        async run(ctx: TemplateTagContext) {
+        run: cacheResult(1_000, onlyOne(async (ctx: TemplateTagContext) => {
             if(ctx.valorantOverrides?.partyId !== undefined && ctx.valorantOverrides.partyId.length !== 0) return ctx.valorantOverrides.partyId
 
             const token = (ctx.valorantOverrides?.token !== undefined && ctx.valorantOverrides.token.length !== 0) ? ctx.valorantOverrides.token : (await getOrLoadAuthInfo()).accessToken
@@ -302,6 +303,6 @@ module.exports.templateTags = [
             const clientVersion = (ctx.valorantOverrides?.clientVersion !== undefined && ctx.valorantOverrides.clientVersion.length !== 0) ? ctx.valorantOverrides.clientVersion : await getOrLoadClientVersion()
 
             return await getPartyId(shard, region, puuid, clientVersion, token, entitlement)
-        }
+        }))
     }
 ]
