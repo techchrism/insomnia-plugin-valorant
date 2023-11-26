@@ -9,6 +9,9 @@ import {authFromRiotClient} from './util/auth/auth-from-riot-client'
 import {checkWebViewData} from './util/auth/check-webview-data'
 import {getRegion} from './util/auth/get-region'
 import {getEntitlement} from './util/auth/get-entitlement'
+import {getPregameMatchId} from './util/api/get-pregame-match-id'
+import {getCurrentGameMatchId} from './util/api/get-current-game-match-id'
+import {getPartyId} from './util/api/get-party-id'
 
 interface ValorantAPIVersionResponse {
     data: {
@@ -25,7 +28,10 @@ interface ValorantOverrides {
     entitlement?: string
     token?: string
     region?: string
-    shard?: string
+    shard?: string,
+    pregameMatchId?: string
+    currentGameMatchId?: string
+    partyId?: string
 }
 
 interface TemplateTagContext {
@@ -136,7 +142,16 @@ async function getOrLoadRegionInfo() {
             throw [logError, authError]
         }
     }
+}
 
+async function getOrLoadClientVersion() {
+    if(cachedClientVersion !== undefined) return cachedClientVersion
+    //TODO the api endpoint and the logs have a different format for the version, need to check to ensure both work
+    cachedClientVersion = await tryInOrder([
+        async () => (await getOrLoadLogInfo()).clientVersion,
+        async () => ((await (await fetch('https://valorant-api.com/v1/version')).json()) as ValorantAPIVersionResponse).data.riotClientVersion
+    ])
+    return cachedClientVersion
 }
 
 // Some names are preceded by "valorant_" because I expect they might conflict with tags added by other plugins
@@ -156,13 +171,7 @@ module.exports.templateTags = [
         description: 'Valorant client version',
         async run(ctx: TemplateTagContext) {
             if(ctx.valorantOverrides?.clientVersion !== undefined && ctx.valorantOverrides.clientVersion.length !== 0) return ctx.valorantOverrides.clientVersion
-            if(cachedClientVersion !== undefined) return cachedClientVersion
-            //TODO the api endpoint and the logs have a different format for the version, need to check to ensure both work
-            cachedClientVersion = await tryInOrder([
-                async () => (await getOrLoadLogInfo()).clientVersion,
-                async () => ((await (await fetch('https://valorant-api.com/v1/version')).json()) as ValorantAPIVersionResponse).data.riotClientVersion
-            ])
-            return cachedClientVersion
+            return await getOrLoadClientVersion()
         }
     },
     {
@@ -243,6 +252,56 @@ module.exports.templateTags = [
         async run(ctx: TemplateTagContext) {
             if(ctx.valorantOverrides?.entitlement !== undefined && ctx.valorantOverrides.entitlement.length !== 0) return ctx.valorantOverrides.entitlement
             return (await getOrLoadAuthInfo()).entitlement
+        }
+    },
+    {
+        name: 'pregame_match_id',
+        displayName: 'Pre-Game Match ID',
+        description: 'Valorant pre-game match ID',
+        async run(ctx: TemplateTagContext) {
+            //TODO cache results for a while to prevent api spam on mouseover
+            if(ctx.valorantOverrides?.pregameMatchId !== undefined && ctx.valorantOverrides.pregameMatchId.length !== 0) return ctx.valorantOverrides.pregameMatchId
+
+            const token = (ctx.valorantOverrides?.token !== undefined && ctx.valorantOverrides.token.length !== 0) ? ctx.valorantOverrides.token : (await getOrLoadAuthInfo()).accessToken
+            const entitlement = (ctx.valorantOverrides?.entitlement !== undefined && ctx.valorantOverrides.entitlement.length !== 0) ? ctx.valorantOverrides.entitlement : (await getOrLoadAuthInfo()).entitlement
+            const region = (ctx.valorantOverrides?.region !== undefined && ctx.valorantOverrides.region.length !== 0) ? ctx.valorantOverrides.region : (await getOrLoadRegionInfo()).region
+            const shard = (ctx.valorantOverrides?.shard !== undefined && ctx.valorantOverrides.shard.length !== 0) ? ctx.valorantOverrides.shard : (await getOrLoadRegionInfo()).shard
+            const puuid = (ctx.valorantOverrides?.puuid !== undefined && ctx.valorantOverrides.puuid.length !== 0) ? ctx.valorantOverrides.puuid : (await getOrLoadAuthInfo()).puuid
+
+            return await getPregameMatchId(shard, region, puuid, token, entitlement)
+        }
+    },
+    {
+        name: 'current_game_match_id',
+        displayName: 'Current Game Match ID',
+        description: 'Valorant current game match ID',
+        async run(ctx: TemplateTagContext) {
+            if(ctx.valorantOverrides?.currentGameMatchId !== undefined && ctx.valorantOverrides.currentGameMatchId.length !== 0) return ctx.valorantOverrides.currentGameMatchId
+
+            const token = (ctx.valorantOverrides?.token !== undefined && ctx.valorantOverrides.token.length !== 0) ? ctx.valorantOverrides.token : (await getOrLoadAuthInfo()).accessToken
+            const entitlement = (ctx.valorantOverrides?.entitlement !== undefined && ctx.valorantOverrides.entitlement.length !== 0) ? ctx.valorantOverrides.entitlement : (await getOrLoadAuthInfo()).entitlement
+            const region = (ctx.valorantOverrides?.region !== undefined && ctx.valorantOverrides.region.length !== 0) ? ctx.valorantOverrides.region : (await getOrLoadRegionInfo()).region
+            const shard = (ctx.valorantOverrides?.shard !== undefined && ctx.valorantOverrides.shard.length !== 0) ? ctx.valorantOverrides.shard : (await getOrLoadRegionInfo()).shard
+            const puuid = (ctx.valorantOverrides?.puuid !== undefined && ctx.valorantOverrides.puuid.length !== 0) ? ctx.valorantOverrides.puuid : (await getOrLoadAuthInfo()).puuid
+
+            return getCurrentGameMatchId(shard, region, puuid, token, entitlement)
+        }
+    },
+    {
+        name: 'party_id',
+        displayName: 'Party ID',
+        description: 'Valorant party ID',
+        async run(ctx: TemplateTagContext) {
+            if(ctx.valorantOverrides?.partyId !== undefined && ctx.valorantOverrides.partyId.length !== 0) return ctx.valorantOverrides.partyId
+
+            const token = (ctx.valorantOverrides?.token !== undefined && ctx.valorantOverrides.token.length !== 0) ? ctx.valorantOverrides.token : (await getOrLoadAuthInfo()).accessToken
+            const entitlement = (ctx.valorantOverrides?.entitlement !== undefined && ctx.valorantOverrides.entitlement.length !== 0) ? ctx.valorantOverrides.entitlement : (await getOrLoadAuthInfo()).entitlement
+            const region = (ctx.valorantOverrides?.region !== undefined && ctx.valorantOverrides.region.length !== 0) ? ctx.valorantOverrides.region : (await getOrLoadRegionInfo()).region
+            const shard = (ctx.valorantOverrides?.shard !== undefined && ctx.valorantOverrides.shard.length !== 0) ? ctx.valorantOverrides.shard : (await getOrLoadRegionInfo()).shard
+            const puuid = (ctx.valorantOverrides?.puuid !== undefined && ctx.valorantOverrides.puuid.length !== 0) ? ctx.valorantOverrides.puuid : (await getOrLoadAuthInfo()).puuid
+            const clientVersion = (ctx.valorantOverrides?.clientVersion !== undefined && ctx.valorantOverrides.clientVersion.length !== 0) ? ctx.valorantOverrides.clientVersion : await getOrLoadClientVersion()
+
+            return await getPartyId(shard, region, puuid, clientVersion, token, entitlement)
         }
     }
 ]
