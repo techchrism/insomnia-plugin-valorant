@@ -2,7 +2,13 @@ import {AddressInfo, WebSocketServer, WebSocket} from 'ws'
 import {getRiotClientConfig, RiotConfigResponse} from './util/api/get-riot-client-config'
 import tls from 'node:tls'
 import {asyncSocketRead, asyncSocketWrite, waitForConnect} from './util/async-socket'
+import {XMLBuilder, XMLParser, XMLValidator} from 'fast-xml-parser'
 
+const recognizedModes = ['raw', 'json', 'raw-buffered'] as const
+type RecognizedMode = typeof recognizedModes[number]
+
+const parser = new XMLParser({ignoreAttributes: false})
+const builder = new XMLBuilder({ignoreAttributes: false})
 let configCache: RiotConfigResponse | undefined = undefined
 
 // I don't expect the config data I'm using to change with different token/entitlement combos which is why I'm caching it across XMPP connections
@@ -46,6 +52,7 @@ export class XMPPManager {
 
                     const token = authorization.slice('Bearer '.length)
                     const wsUrlSuffix = request.url!.split('/').pop()!
+                    const mode = recognizedModes.includes(wsUrlSuffix as RecognizedMode) ? wsUrlSuffix as RecognizedMode : 'raw'
 
                     // Get affinity from PAS token
                     const pasParts = pasToken.split('.')
@@ -54,7 +61,7 @@ export class XMPPManager {
                     const affinity = pasData['affinity']
                     if(affinity === undefined) throw new Error('Invalid PAS token, missing affinity')
 
-                    wsLog(ws, 'Setting up XMPP connection...')
+                    wsLog(ws, `Setting up XMPP connection using mode "${mode}"...`)
 
                     // Get affinity host and domain from riot config
                     const riotConfig = await getOrLoadRiotConfig(token, entitlement)
@@ -73,7 +80,6 @@ export class XMPPManager {
                     socket.on('close', () => ws.close())
                     await waitForConnect(socket)
                     wsLog(ws, 'Connected to XMPP server, authenticating...')
-                    let requestID = 0
 
                     // Stage 1
                     await asyncSocketWrite(socket, `<?xml version="1.0"?><stream:stream to="${affinityDomain}.pvp.net" version="1.0" xmlns:stream="http://etherx.jabber.org/streams">`)
@@ -105,20 +111,59 @@ export class XMPPManager {
                     await asyncSocketRead(socket)
 
                     wsLog(ws, 'Connected and authenticated, now proxying data!')
+                    // Send an empty gap to make the log look nicer
+                    ws.send('')
 
-                    socket.on('data', data => ws.send(data.toString()))
-                    ws.on('message', data => {
-                        if(Array.isArray(data)) {
-                            data.forEach(b => socket.write(b))
-                        } else if(data instanceof ArrayBuffer) {
-                            socket.write(Buffer.from(data))
-                        } else {
-                            socket.write(data)
-                        }
-                    })
+                    // Ping to keep the connection alive
+                    const pingInterval = setInterval(() => {
+                        socket.write(' ')
+                    }, 150_000)
+                    socket.on('close', () => clearInterval(pingInterval))
+
+                    // Sending modes
+                    if(mode === 'raw' || mode === 'raw-buffered') {
+                        ws.on('message', data => {
+                            if(Array.isArray(data)) {
+                                data.forEach(b => socket.write(b))
+                            } else if(data instanceof ArrayBuffer) {
+                                socket.write(Buffer.from(data))
+                            } else {
+                                socket.write(data)
+                            }
+                        })
+                    } else if(mode === 'json') {
+                        ws.on('message', data => {
+                            try {
+                                const parsed = JSON.parse(data.toString())
+                                const xml = builder.build(parsed)
+                                socket.write(xml)
+                            } catch(e: any) {
+                                wsLog(ws, 'Invalid JSON: ' + e.toString())
+                            }
+                        })
+                    }
+
+                    // Receiving modes
+                    if(mode === 'raw') socket.on('data', data => ws.send(data.toString()))
+                    else if(mode === 'raw-buffered' || mode === 'json') {
+                        let buffer = ''
+                        socket.on('data', (data: Buffer) => {
+                            buffer += data.toString()
+                            if(XMLValidator.validate(`<a>${buffer}</a>`) === true) {
+                                if(mode === 'json') {
+                                    const parsed = parser.parse(buffer)
+                                    ws.send(JSON.stringify(parsed))
+                                } else {
+                                    ws.send(buffer)
+                                }
+                                buffer = ''
+                            }
+                        })
+                    }
+
                     ws.on('close', () => socket.destroy())
                 } catch(e: any) {
-                    ws.send('[insomnia-plugin-valorant] internal error: ' + e.toString())
+                    wsLog(ws, 'Error: ' + e.toString())
                     ws.close(4000)
                 }
             })

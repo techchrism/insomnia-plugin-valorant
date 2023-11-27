@@ -41,6 +41,7 @@
     },
     "dependencies": {
         "@types/ws": "^8.5.10",
+        "fast-xml-parser": "^4.3.2",
         "node-fetch": "^2.7.0",
         "ws": "^8.14.2"
     }
