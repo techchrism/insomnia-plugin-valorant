@@ -1,7 +1,7 @@
 import {AddressInfo, WebSocketServer, WebSocket} from 'ws'
-import {getRiotClientConfig, RiotConfigResponse} from './util/api/get-riot-client-config'
+import {getRiotClientConfig, RiotConfigResponse} from '../util/api/get-riot-client-config'
 import tls from 'node:tls'
-import {asyncSocketRead, asyncSocketWrite, waitForConnect} from './util/async-socket'
+import {asyncSocketRead, asyncSocketWrite, waitForConnect} from '../util/async-socket'
 import {XMLBuilder, XMLParser, XMLValidator} from 'fast-xml-parser'
 
 const recognizedModes = ['raw', 'json', 'raw-buffered'] as const

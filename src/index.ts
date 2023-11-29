@@ -15,7 +15,8 @@ import {getPartyId} from './util/api/get-party-id'
 import {onlyOne} from './util/only-one'
 import {cacheResult} from './util/cache-result'
 import {getPASToken} from './util/auth/get-pas-token'
-import {XMPPManager} from './XMPPManager'
+import {XMPPManager} from './xmpp/XMPPManager'
+import {XMPPMITMManager} from './xmpp/XMPPMITMManager'
 
 interface ValorantAPIVersionResponse {
     data: {
@@ -89,6 +90,7 @@ if(hasWorkspaceActionsBug()) {
 }
 
 const xmppManager = new XMPPManager()
+const xmppMITMManager = new XMPPMITMManager()
 
 let cachedCompleteLogInfo: LogInfo | undefined = undefined
 let cachedAuthInfo: AuthRedirectData & {entitlement: string, pasToken?: string} | undefined = undefined
@@ -369,6 +371,14 @@ module.exports.templateTags = [
         description: 'Riot XMPP websocket URL',
         run: onlyOne(async () => {
             return await xmppManager.getWebsocketURL()
+        })
+    },
+    {
+        name: 'xmpp_mitm_websocket_url',
+        displayName: 'Riot XMPP MITM',
+        description: 'Riot XMPP MITM websocket URL',
+        run: onlyOne(async () => {
+            return await xmppMITMManager.getWebsocketURL()
         })
     }
 ]
