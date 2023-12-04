@@ -72,4 +72,5 @@ When reporting a bug, open the dev console (`crtl+alt+i`) and include the log in
 ## Dev Setup
 - clone the repo
 - `npm install`
+- `npm run build` or `npm run watch`
 - if on Windows, run `npm run link-windows` to set up a junction to the default Insomnia plugins directory
