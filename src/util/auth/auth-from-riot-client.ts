@@ -3,6 +3,10 @@ import path from 'node:path'
 import fetch from 'node-fetch'
 import {parseAuthRedirect} from './parse-auth-redirect'
 
+function ellipsis(str: string, length: number) {
+    return str.length > length ? str.slice(0, length - 3) + '...' : str
+}
+
 async function ssidReauth(ssid: string) {
     const response = await fetch('https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid', {
         method: 'GET',
@@ -15,7 +19,7 @@ async function ssidReauth(ssid: string) {
 
     const location = response.headers.get('location')
     if(location === null) throw new Error('No location header in response!')
-    if(!location.startsWith('https://playvalorant.com/opt_in')) throw new Error(`Invalid reauth location: ${location}`)
+    if(!location.startsWith('https://playvalorant.com/opt_in')) throw new Error(`Invalid reauth location: ${ellipsis(location, 40)}`)
 
     return parseAuthRedirect(location)
 }
@@ -45,6 +49,7 @@ export async function authFromRiotClient() {
             return await ssidReauth(ssid)
         } catch(e) {
             errors.push(e)
+            await new Promise(resolve => setTimeout(resolve, (i + 1) * 1000))
         }
     }
     /*
