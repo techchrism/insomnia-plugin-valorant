@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "lib": [
+            "ESNext",
+            "dom",
+            "dom.iterable"
+        ],
+        "target": "ESNext",
+        "module": "CommonJS",
+        "strict": true,
+        "sourceMap": true,
+        "declaration": true,
+        "downlevelIteration": true,
+        "outDir": "dist",
+        "rootDir": "src",
+        "composite": true,
+        "esModuleInterop": true
+    }
+}
