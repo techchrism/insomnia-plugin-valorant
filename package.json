@@ -1,6 +1,6 @@
 {
     "name": "insomnia-plugin-valorant",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "description": "Adds template tags to Insomnia with Valorant data",
     "bugs": {
         "url": "https://github.com/techchrism/insomnia-plugin-valorant/issues"
@@ -10,6 +10,9 @@
         "url": "https://github.com/techchrism/insomnia-plugin-valorant.git"
     },
     "main": "./dist/index.js",
+    "files": [
+        "dist"
+    ],
     "scripts": {
         "link-windows": "mklink /J \"%APPDATA%/Insomnia/plugins/insomnia-plugin-valorant\" \".\"",
         "link-insomnium-windows": "mklink /J \"%APPDATA%/Insomnium/plugins/insomnia-plugin-valorant\" \".\"",
